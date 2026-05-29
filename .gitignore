@@ -27,8 +27,6 @@ Thumbs.db
 
 # Environment Files
 application-prod.properties
-application-sit.properties
-application-uat.properties
 
 # Certificates
 *.jks
