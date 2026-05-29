@@ -1,0 +1,91 @@
+spring.application.name=Jio-Payement-Bank
+server.port=9090
+
+# DB connection
+spring.datasource.url=jdbc:sqlserver://192.168.121.10:1433;databaseName=FVKMIS;trustServerCertificate=true
+spring.datasource.username=FVKMIS
+spring.datasource.password=Fvkmis@4321
+spring.datasource.driverClassName=com.microsoft.sqlserver.jdbc.SQLServerDriver
+spring.jpa.show-sql=false
+
+#Agent URL's
+tokenURL=https://apig.jiopaymentsbank.com/jpb/v1/app/authenticate
+saveAgentURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/app-mgmt/partner/api/onboarding
+agentInfoURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/v1/app/agent/getAgentUserInformation/
+
+
+#Customer URL's
+generateOtpURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/app-mgmt/jpb/process-request
+applicationStatusURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/app-mgmt/jpb/application/status
+previewURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/app-mgmt/jpb/application/details
+			   
+#Scheduler URL's
+subscribtionsURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/v1/crm/getCommonCodeByKey/SA_SUBSCRIPTIONS
+getConsentsURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/v1/consent/consents
+getPinDetails=https://apig.jiopaymentsbank.com/jpb/v1/app/crm/getPincode/
+SMSURL=https://vkmssit.vakrangee.in/email-sms-gateway/sms-service-airtel
+
+#SMS Api Key
+apiKey=c4f67d09ff264a1ac9b0bdf61676d255c6b273d5b9634e5c951a3718e90bc86d
+
+#Pre-Check Image Upload Directory
+precheck.jpb.url=E:/Upload/jpb/files
+jio.onbording.url=https://api.vakrangee.in/jpb/uploadedimages/
+
+#Bio metric data
+SA=SKJIOPAYB1
+appCode=BCAPP
+
+#Imp Inputs
+purpose=2
+channelID=7245
+clientID=6e90fbd26678faa40e07fa9d24cdd431
+authenticateMode=20
+AppName=JPB Third Party BC-Vakrangee
+SecretCode=2892ad2a5157de4a960dc3b607ccb2b6ef2669968ee0bb47f61872eb1de2b2c2
+PublicKeyPath=E:/Deployment/Jio/publicKey 1.pem
+
+
+PublicKey=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkGJZ9gZuStr8ZJyDOsZvFN90nqKa+j7GJ4c/eSEY+F4JnQ0A+lzZ75+5xpF1Tey0jCnAbhK6/KJ/xZjwXMMBfOfCCjicmpn5hrkYwEwaM6pCteJc4YigbcQn6PD1Yk5d1hIKDG+2X5P47gGYg8ppJ78svgaOt3hth454Nkhq9EE7rslh8blYiK75ntOX/ikDyYCqM/+7K4jVGVukDcMEPgGCb1Q3nMgXfCfE0e0dSCmY4s/1DkyUxa5AKgRn+u4atM3Zw0lUaG+/W/SF6fTuE6d7lFg+V0GiNNVvqmRQ7t3r8Q8FN1EhLEMai6kUL+3EH6NcqZnwqKtuptJVKkO0bQIDAQAB
+agentId=10402602363483996000
+
+#static values for Customer API's
+applicationType=CustomerOnboarding
+applicationSubType=SAVINGS
+oranizationName=7245
+countryCode=91
+apiVersion=2.0
+contanctType=MOBILE
+country=India
+
+#Image Storage Pre-Check
+spring.servlet.multipart.max-file-size=10GB
+spring.servlet.multipart.max-request-size=10GB
+server.tomcat.max-swallow-size=-1
+server.tomcat.connection-timeout=600000
+
+#Payment Points PROD
+serviceID=1
+SubServiceID=1335
+virtual.SubSubServiceID=1485
+physical.SubSubServiceID=1486
+walletID=1
+TransactionAuthenticationType=1
+TransactionType=1
+
+#Loggers config---------------------------------------------
+logging.level.root=INFO
+logging.level.com.yourpackage=DEBUG
+logging.file.name=logs/app.log
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger - %msg%n
+logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n
+logging.level.com.microsoft.sqlserver.jdbc.internals.TDS.Channel=ERROR
+
+# ========================= 
+# HIKARI CONNECTION POOL 
+# ========================= 
+spring.datasource.hikari.minimum-idle=5 
+spring.datasource.hikari.maximum-pool-size=20 
+spring.datasource.hikari.idle-timeout=300000 
+spring.datasource.hikari.connection-timeout=30000 
+spring.datasource.hikari.max-lifetime=1800000

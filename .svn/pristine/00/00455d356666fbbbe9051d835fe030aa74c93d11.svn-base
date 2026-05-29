@@ -1,0 +1,30 @@
+package com.jpb.DTO;
+
+import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import lombok.Data;
+import lombok.ToString;
+
+@Data
+@ToString
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ApplicationSubmitData {
+
+	private String applicationStage;
+	private String applicationStatus;
+	
+	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
+    private LocalDateTime createdAt;
+
+    private String createdBy;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
+    private LocalDateTime updatedAt;
+
+    private String updatedBy;
+	
+	private ErrorDetails error;
+}

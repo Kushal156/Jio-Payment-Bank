@@ -1,0 +1,51 @@
+package com.jpb.Config;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.support.SimpleCacheManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
+
+@Configuration
+@EnableCaching
+public class CacheConfig {
+
+    @Bean
+    public CacheManager cacheManager() {
+    	
+    	SimpleCacheManager cacheManager = new SimpleCacheManager();
+
+    	//Account Subs Cache
+        CaffeineCache accountSubscriptionCache =
+                new CaffeineCache(
+                        "accountSubscriptionCache",
+                        Caffeine.newBuilder()
+                                .expireAfterWrite(30, TimeUnit.DAYS)
+                                .maximumSize(10)
+                                .build()
+                );
+        
+        // Consents Cache
+        CaffeineCache consentsCache =
+                new CaffeineCache(
+                        "ConsentsCache",
+                        Caffeine.newBuilder()
+                                .expireAfterWrite(15, TimeUnit.DAYS)
+                                .maximumSize(10)
+                                .build()
+                );
+        
+        cacheManager.setCaches(
+                List.of(accountSubscriptionCache, consentsCache)
+        );
+	
+        return cacheManager;
+    }
+}

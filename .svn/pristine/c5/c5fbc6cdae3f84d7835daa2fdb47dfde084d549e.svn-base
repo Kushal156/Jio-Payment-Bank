@@ -1,0 +1,33 @@
+package com.jpb.Service;
+
+import org.springframework.http.ResponseEntity;
+
+import com.jpb.DTO.CustomerInputRequestDTO;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+public interface CustomerService {
+
+	ResponseEntity<?> generateOtp(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> verifyOtp(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> resendOtp(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> sendEmail(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> verifyEmail(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> resendEmail(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> verify(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> submitApp(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> preview(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> applicationStatus(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> customerAuth(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+}

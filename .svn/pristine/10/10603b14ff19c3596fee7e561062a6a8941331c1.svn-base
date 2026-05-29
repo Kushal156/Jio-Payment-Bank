@@ -1,0 +1,546 @@
+package com.jpb.ServiceImpl;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiFunction;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.repository.query.Param;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
+
+import com.jpb.Config.TokenManager;
+import com.jpb.DTO.AccountsDTO;
+import com.jpb.DTO.ActionDTO;
+import com.jpb.DTO.AddOnDTO;
+import com.jpb.DTO.AddressDTO;
+import com.jpb.DTO.AgentInfoResponseDTO;
+import com.jpb.DTO.BCDetailsDTO;
+import com.jpb.DTO.ContactDetailsDTO;
+import com.jpb.DTO.CustomerEAuthResponseDTO;
+import com.jpb.DTO.CustomerInputRequestDTO;
+import com.jpb.DTO.CustomerPanAadharVerifyResponseDTO;
+import com.jpb.DTO.DebitCardDetailsDTO;
+import com.jpb.DTO.ErrorDetails;
+import com.jpb.DTO.FinancialDetailsDTO;
+import com.jpb.DTO.GuardianDTO;
+import com.jpb.DTO.NomineeDTO;
+import com.jpb.DTO.OVDetailsDTO;
+import com.jpb.DTO.OrganizationDTO;
+import com.jpb.DTO.PersonDTO;
+import com.jpb.DTO.PersonalDetailsDTO;
+import com.jpb.DTO.ProductDTO;
+import com.jpb.DTO.RecallApplicationRequestDTO;
+import com.jpb.DTO.ResendOtpResponseDTO;
+import com.jpb.DTO.SubmitApplicationRequstDTO;
+import com.jpb.DTO.SubmitApplicationResponseDTO;
+import com.jpb.Entity.AgentMasterEntity;
+import com.jpb.Entity.CustomerApiLogEntity;
+import com.jpb.Entity.CustomerHistoryEntity;
+import com.jpb.Entity.CustomerMasterEntity;
+import com.jpb.Entity.DebitTransactionEntity;
+import com.jpb.Repository.AgentMasterRepository;
+import com.jpb.Repository.CustomerApiLogRepository;
+import com.jpb.Repository.CustomerHistoryRepository;
+import com.jpb.Repository.CustomerMasterRepository;
+import com.jpb.Repository.DebitTransactionRepository;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.ObjectMapper;
+
+@Service
+@Slf4j
+public class TestService {
+
+	@Value("${generateOtpURL}")
+	private String URL;
+
+	@Value("${PublicKeyPath}")
+	private String keyPath;
+
+	@Value("${PublicKey}")
+	private String PublicKey;
+
+	// Static Values
+	@Value("${channelID}")
+	private String channelId;
+
+	@Value("${agentId}")
+	private String agentID;
+
+	@Value("${applicationType}")
+	private String applicationType;
+
+	@Value("${applicationSubType}")
+	private String applicationSubType;
+
+	@Value("${oranizationName}")
+	private String oranizationName;
+
+	@Value("${countryCode}")
+	private String countryCode;
+
+	@Value("${apiVersion}")
+	private String apiVersion;
+
+	@Value("${contanctType}")
+	private String contanctType;
+
+	@Value("${country}")
+	private String country;
+	
+	@Value("${agentInfoURL}")
+	private String agentInfoUrl;
+
+	@Autowired
+	TokenManager tokenManager;
+
+	@Autowired
+	AuthServiceImpl auth;
+
+	@Autowired
+	RestTemplate rest;
+
+	@Autowired
+	UtilityService util;
+
+	@Autowired
+	CustomerMasterRepository masterRepo;
+
+	@Autowired
+	CustomerApiLogRepository apiLogRepo;
+
+	@Autowired
+	CustomerHistoryRepository historyRepo;
+
+	@Autowired
+	AgentMasterRepository agentRepo;
+
+	@Autowired
+	DebitTransactionRepository debitRepo;
+	
+	// Get Consents Mocked
+	public ResponseEntity<?> getConsents(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+		try {
+
+			Map<String, Object> finalResponse = new LinkedHashMap<>();
+			Map<String, Object> response = new LinkedHashMap<>();
+			List<Map<String, Object>> consents = new ArrayList<>();
+
+			boolean isEnglish = "eng".equalsIgnoreCase(input.getLanguage());
+
+			// Common method to build consent
+			BiFunction<String, String, Map<String, Object>> buildConsent = (code, text) -> {
+				Map<String, Object> consent = new LinkedHashMap<>();
+				consent.put("activityType", "CO_VKYC");
+				consent.put("consentTextCode", code);
+				consent.put("fromDate", "2023-03-08");
+				consent.put("language", isEnglish ? "EN" : "OTH");
+				consent.put("mandatory", "Y");
+
+				Map<String, String> salesChannel = new HashMap<>();
+				salesChannel.put("id", "7245");
+
+				consent.put("salesChannel", salesChannel);
+				consent.put("status", "ACTIVE");
+				consent.put("text1", text);
+				consent.put("toDate", "2030-10-24");
+
+				return consent;
+			};
+
+			// English texts
+			if (isEnglish) {
+
+				consents.add(buildConsent.apply("C05",
+						"I hereby give my consent to Jio Payments Bank Ltd to send/share messages."));
+
+				consents.add(buildConsent.apply("C06",
+						"I agree to the terms published on the mobile application and website."));
+
+				consents.add(buildConsent.apply("C32",
+						"I consent to Jio Payments Bank Limited for opening and sharing KYC details."));
+
+			}
+			// Other language texts (sample Hindi/Tamil mix)
+			else {
+
+				consents.add(buildConsent.apply("C05", "मैं जियो पेमेंट्स बैंक को संदेश भेजने के लिए सहमति देता हूं।"));
+
+				consents.add(buildConsent.apply("C06", "मैं नियमों और शर्तों से सहमत हूं।"));
+
+				consents.add(buildConsent.apply("C32", "मैं केवाईसी विवरण साझा करने के लिए सहमति देता हूं।"));
+			}
+
+			response.put("consents", consents);
+			response.put("timeStamp", LocalDateTime.now().toString());
+
+			finalResponse.put("code", 0);
+			finalResponse.put("response", response);
+			finalResponse.put("status", "SUCCESS");
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Get Consents Exception", e);
+			throw new RuntimeException("Get Consents failed", e);
+		}
+	}
+	
+	//Pan Aadhaar Verify Mock
+	public ResponseEntity<?> verify(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		
+		log.info("Customer Aadhaar Pan Verify Mocked Service!!!!");
+		String responseBody = null;
+		ObjectMapper mapper = new ObjectMapper();
+		CustomerPanAadharVerifyResponseDTO finalResponse = new CustomerPanAadharVerifyResponseDTO();
+		
+		responseBody = """
+				{
+				  "externalAppRefNumber": "REF1777982904338",
+				  "applicationNumber": "JPBREF177804858509363260",
+				  "status": "SUCCESS",
+				  "nextAction": {
+				    "type": "APPLICATION",
+				    "subType": "SUBMIT"
+				  },
+				  "data": {
+				    "persons": {
+				      "aadhaar": {
+				        "type": "token",
+				        "value": "01001255ESUXhKglTPUkG5QvpEIa4Zdt18n9/ZZoFEyi48xIxOT62WbbL9HtKdju+igGd7KU",
+				        "maskedAadhaar": "XXXXXXXX4372",
+				        "name": "Sai Vinayak Shekhar Bangera",
+				        "dob": "01-09-1987",
+				        "address": {
+				          "line1": null,
+				          "line2": null,
+				          "line3": null,
+				          "addressType": "PERMANENT",
+				          "careOf": null,
+				          "houseNumber": "B-301, Hari Mandir CHS,",
+				          "street": null,
+				          "landmark": "Near Arunodaya Hospital,",
+				          "locality": "Sector-10, New Panvel, Navi Mumbai",
+				          "city": null,
+				          "postOffice": "Panvel",
+				          "district": "Raigad",
+				          "subDistrict": null,
+				          "state": "Maharashtra",
+				          "stateCode": null,
+				          "country": "India",
+				          "pincode": "410206",
+				          "geoLocation": null,
+				          "sameAsPermanent": false
+				        },
+				        "photo": "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",
+				        "gender": "M",
+				        "timestamp": null,
+				        "authCode": null,
+				        "authMode": null,
+				        "saTxnId": null,
+				        "aadhaarXml": null,
+				        "isResidentForeigner": null,
+				        "demoAuthStatus": null
+				      },
+				      "financialDetails": {
+				        "panNumber": "LYPPS1933L",
+				        "nameAsPerPan": null,
+				        "dobAsPerPan": null,
+				        "panStatus": "E",
+				        "aadhaarSeedStatus": "Y",
+				        "nameStatus": "N",
+				        "dobStatus": "N",
+				        "nameMatchPer": null,
+				        "sourceOfIncome": null,
+				        "occupation": null,
+				        "subOccupation": null,
+				        "incomeRange": null,
+				        "annualSalary": null
+				      }
+				    }
+				  }
+				}
+				""";
+		
+		finalResponse = mapper.readValue(responseBody, CustomerPanAadharVerifyResponseDTO.class);
+		
+		return ResponseEntity.ok(finalResponse);
+	}
+	
+	// Customer E-Auth Mock
+	public ResponseEntity<?> customerAuth(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		
+		log.info("Customer E-Auth Mocked Service!!!!");
+		CustomerEAuthResponseDTO finalResponse = new CustomerEAuthResponseDTO();
+		finalResponse.setApplicationNumber(input.getApplicationNumber());
+		finalResponse.setExternalAppRefNumber(input.getExternalAppRefNumber());
+		finalResponse.setStatus("SUCCESS");
+		
+		return ResponseEntity.ok(finalResponse);
+	}
+
+	// Submit Application Mock
+	public ResponseEntity<?> submitApp(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		log.info("Submit Application Request from Customer :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+		log.info("JSON Reqest from Customer Submit Application :: {}", mapper.writeValueAsString(input));
+		try {
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			// Request
+			SubmitApplicationRequstDTO request = new SubmitApplicationRequstDTO();
+
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("APPLICATION");
+			action.setSubType("SUBMIT");
+			request.setAction(action);
+
+			// Organization
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			// BCDetails
+			BCDetailsDTO bc = new BCDetailsDTO();
+			bc.setUserId(agentID);
+			request.setBcDetails(bc);
+
+			// Persons + Finance
+			PersonDTO person = new PersonDTO();
+			FinancialDetailsDTO finance = new FinancialDetailsDTO();
+			finance.setAnnualSalary("3 lakhs");
+			finance.setSourceOfIncome("A04");
+			finance.setOccupation("JP1");
+			person.setFinancialDetails(finance);
+			
+			//Address(Permanent + Communication)
+			person.setAddress(input.getPersonAddress()); //address added for person
+			request.setPersons(Collections.singletonList(person));
+
+			// Products + Accounts + Contact
+			ProductDTO product = new ProductDTO();
+			product.setProductType(applicationSubType); // savings
+
+			AccountsDTO accounts = new AccountsDTO();
+			NomineeDTO nominee = new NomineeDTO();
+			nominee.setRelationship("Father");
+			nominee.setFirstName("Kushal");
+			nominee.setLastName("Sardar");
+
+			List<ContactDetailsDTO> contactDetailsList = new ArrayList<>();
+			ContactDetailsDTO mobile = new ContactDetailsDTO();
+			mobile.setType("Mobile");
+			mobile.setCountryCode(countryCode);
+			mobile.setMobileNumber(input.getMobileNumber());
+			mobile.setStatus("PreVerified");
+			contactDetailsList.add(mobile);
+
+			ContactDetailsDTO email = new ContactDetailsDTO();
+			email.setType("Personal Email");
+			email.setEmail(input.getEmailId());
+			contactDetailsList.add(email);
+			nominee.setContactDetails(contactDetailsList);
+
+			OVDetailsDTO ovd = new OVDetailsDTO();
+			ovd.setDocumentNumber("111");
+			ovd.setDocumentType("AADHAR");
+			nominee.setOvdDetails(Collections.singletonList(ovd));
+
+			AddressDTO add = new AddressDTO();
+			add.setAddressType("PERMANENT");
+			add.setDistrict("Navi Mumbai");
+			add.setState("MAHARASHTRA");
+			add.setStateCode("MH");
+			add.setCountry(country);
+			add.setPincode("400701");
+			nominee.setAddress(Collections.singletonList(add));
+
+			GuardianDTO guard = new GuardianDTO();
+			guard.setFirstName("Mithu");
+			guard.setLastName("Sardar");
+
+			List<ContactDetailsDTO> finalguardContact = new ArrayList<>();
+			ContactDetailsDTO mobGuardContact = new ContactDetailsDTO();
+			mobGuardContact.setType("Mobile");
+			mobGuardContact.setCountryCode(countryCode);
+			mobGuardContact.setMobileNumber("9123456789");
+			mobGuardContact.setStatus("PreVerified");
+			finalguardContact.add(mobGuardContact);
+
+			ContactDetailsDTO emailGuardContact = new ContactDetailsDTO();
+			emailGuardContact.setType("Personal Email");
+			emailGuardContact.setEmail("kushal.sardar@gmail.com");
+			finalguardContact.add(email);
+			guard.setContactDetails(finalguardContact);
+
+			OVDetailsDTO guardOVD = new OVDetailsDTO();
+			guardOVD.setDocumentNumber("111");
+			guardOVD.setDocumentType("AADHAR");
+			guard.setOvdDetails(Collections.singletonList(guardOVD));
+
+			AddressDTO guardADD = new AddressDTO();
+			guardADD.setAddressType("PERMANENT");
+			guardADD.setDistrict("Navi Mumbai");
+			guardADD.setState("MAHARASHTRA");
+			guardADD.setStateCode("MH");
+			guardADD.setCountry(country);
+			guardADD.setPincode("400701");
+			guard.setAddress(Collections.singletonList(guardADD));
+
+			nominee.setGuardian(Collections.singletonList(guard));
+
+			AddOnDTO addOn = new AddOnDTO();
+			DebitCardDetailsDTO card = new DebitCardDetailsDTO();
+			card.setNetwork("DUMMY");
+			card.setRegion("DOMESTIC");
+			card.setSubscriptionId(1000);
+			card.setCardType("VIRTUAL");
+			card.setTierType("TRGWFEE");
+			addOn.setDebitCardDetails(Collections.singletonList(card));
+			// addOn.setDebitCardDetails(card);
+			product.setAddOn(Collections.singletonList(addOn));
+
+			accounts.setNominee(Collections.singletonList(nominee));
+			product.setAccounts(Collections.singletonList(accounts));
+			request.setProducts(Collections.singletonList(product));
+
+			log.info("Submit Application request :: {}", request.toString());
+			log.info("JSON Request for Submit Application :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<SubmitApplicationRequstDTO> entity = new HttpEntity<>(request, headers);
+
+//			ResponseEntity<String> response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+
+//				//DB Activity for money debit----------
+//				DebitTransactionEntity debit = debitRepo.debitTransaction
+//						(input.getExternalAppRefNumber(),
+//						"Payment For JPB",
+//						"1", //service ID
+//						"1335" //Sub Service ID
+//						"1485/1486", //Sub Sub Service ID
+//						"",
+//						);
+
+//				String debitBalance = "{ CALL [VLPaymentGateway].[DebitTransaction] (?,?,?,?,?,?,?,?,?,?,?,?,?) }";
+//				Map<String, Object> debitBalanceResult = jdbcTemplate.queryForMap(debitBalance,
+//				new Object[] { transactionRefID,remarks,  ServiceId, subServiceId, subSubServiceId ,subSubSubServiceId,
+//				vkid,walletId,transactionAmount,bcid, rrnnumber,transactionauthenticationtype, transactiontype});
+//				
+
+//				//------------------------------
+//			log.info("Submit Application Raw Response :: {}", response.getBody());
+//			return ResponseEntity.ok(response.getBody());
+				return null;
+		} catch (Exception e) {
+			log.error("Submit Application Exception", e);
+			throw new RuntimeException("Submit Application failed", e);
+		}
+	}
+	
+	//Agent Scheduler Mocked BKP
+	public ResponseEntity<?> agentInfo(String agentId, HttpServletRequest httpRequest,String latitude, String longitude) {
+		
+		 log.info("Agent ID :: {}",	agentId);
+
+		    ObjectMapper mapper = new ObjectMapper();
+		    try {
+		    	
+		    	//Token
+		        if (!tokenManager.isAccessTokenValid()) {
+		            log.info("Token expired → generating new token");
+		            auth.generateToken(httpRequest);
+		        }
+		                
+		        String url = agentInfoUrl + agentId + "?organizationName=" + channelId;     
+
+		        log.info("Final URL :: {}", url);
+		        
+		        HttpHeaders headers = util.buildHeaders(
+		                httpRequest,
+		                tokenManager.getAccessToken(),
+		                tokenManager.getAppIdentifierToken(),
+		                latitude, longitude
+		        );
+
+		        HttpEntity<RecallApplicationRequestDTO> entity = new HttpEntity<>(headers);
+
+		        ResponseEntity<String> apiResponse = rest.exchange(url, HttpMethod.GET, entity, String.class);
+		        
+		        log.info("Agent Info Raw Response :: {}", apiResponse.getBody());
+		        
+		        AgentInfoResponseDTO finalResponse = mapper.readValue(apiResponse.getBody(), AgentInfoResponseDTO.class);
+		        
+		        Optional.ofNullable(finalResponse.getExternalUserId())
+		        .filter(externalId -> agentId.equalsIgnoreCase(externalId))
+		        .ifPresentOrElse(
+		            matchedExternalId -> {
+		                Optional<AgentMasterEntity> optional = agentRepo.findByExternalAppRefNumber(agentId);
+
+		                optional.ifPresent(agent -> {
+		                    agent.setJioAgentId(finalResponse.getLoginId());
+		                    agent.setActionType("ONBOARDED");
+		                    agent.setActionSubType("DONE");
+		                    agent.setUpdatedAt(LocalDateTime.now());
+		                    agentRepo.save(agent);
+
+		                    log.info("Details Updated Successfully for External-AppRef No :: {}", matchedExternalId);
+		                });
+		            },
+		            () -> {
+		                Optional<AgentMasterEntity> optional = agentRepo.findByExternalAppRefNumber(agentId);
+
+		                optional.ifPresent(agent -> {
+		                    agent.setActionType("Jio AgentID Pending");
+		                    agent.setActionSubType("ExternalUserId mismatch or missing");
+		                    agent.setUpdatedAt(LocalDateTime.now());
+		                    agentRepo.save(agent);
+		                    
+		                    log.info("Details Updated Successfully for Non Agent ID External-AppRef No :: {}", agentId);
+		                });
+		            }
+		        );
+		        
+		        return ResponseEntity.ok(finalResponse);
+		        
+		    } catch(Exception e) {
+		    	log.error("Agent Info Exception", e);
+		        throw new RuntimeException("Agent Info API failed", e);
+		    }
+	}
+
+}

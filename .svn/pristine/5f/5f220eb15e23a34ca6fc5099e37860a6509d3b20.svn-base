@@ -1,0 +1,733 @@
+package com.jpb.ServiceImpl;
+
+import java.util.ArrayList;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.jpb.DTO.JPBOnbardingLatLongRequestDto;
+import com.jpb.DTO.PreOnboardingImageResponseDto;
+import com.jpb.DTO.PreOnboardingViewDto;
+import com.jpb.DTO.PreOnboardingrequestDto;
+import com.jpb.DTO.PreOnbordingCommonResponseDto;
+import com.jpb.Entity.JioOnboardingVklMasterEntity;
+import com.jpb.Entity.JpbPreOnboardingImagesMasterEntity;
+import com.jpb.Entity.OnboardingCheckEntity;
+
+import com.jpb.Entity.PreOnboardingCheckStatusEntity;
+import com.jpb.Repository.PreOnboardingCheckRepository;
+import com.jpb.Repository.PreOnboardingImageMasterRepository;
+import com.jpb.Repository.PreOnboardingStatusRespository;
+import com.jpb.Repository.PreOnboardingVklMasterRepository;
+import com.jpb.Service.OnboardingCheckService;
+
+import lombok.extern.slf4j.Slf4j;
+
+import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+
+@Service
+@Slf4j
+public class PreOnboardingCheckImpl implements OnboardingCheckService {
+
+	@Autowired
+	private PreOnboardingCheckRepository uploadRepository;
+
+	@Autowired
+	private PreOnboardingImageMasterRepository imagemater;
+
+	@Autowired
+	private PreOnboardingVklMasterRepository vklmasterRepo;
+
+	@Autowired
+	private PreOnboardingStatusRespository statuscheckRepository;
+
+	@Value("${precheck.jpb.url}")
+	private String IMAGE_UPLOAD_DIRECTORY;
+
+	@Value("${jio.onbording.url}")
+	private String image_URL;
+
+	
+	public PreOnbordingCommonResponseDto insertlatlong(JPBOnbardingLatLongRequestDto request) {
+				
+	String vkid = request.getVkid();
+		
+	String latitude = request.getLatitude();
+	
+	String longitude = request.getLongitude();
+	
+	PreOnbordingCommonResponseDto responsenew = new PreOnbordingCommonResponseDto();
+	
+	if (latitude ==null || latitude.isEmpty()|| longitude == null || longitude.isEmpty() ) {
+		
+		responsenew.setMessage("latitude and longitude is empty");
+		responsenew.setStatus(false);
+
+		return responsenew;
+		
+	}
+			
+		if (vkid != null && vkid.matches("^[A-Za-z0-9]{9}$")) {
+			Optional<JioOnboardingVklMasterEntity> vklapplicationno = vklmasterRepo.findByVKID(vkid);
+
+			JioOnboardingVklMasterEntity entity1 = vklapplicationno.get();
+
+			vkid = entity1.getApplicationNo();
+
+			vkid = vkid.substring(vkid.length() - 6);
+
+		}
+
+		int vkidnumber = Integer.parseInt(vkid);
+
+		
+		PreOnbordingCommonResponseDto response = new PreOnbordingCommonResponseDto();
+		try {  
+			
+			Optional<OnboardingCheckEntity> optional = uploadRepository.findByVKID(vkidnumber);
+			
+			OnboardingCheckEntity entity;
+			
+			 if (optional.isPresent()) {
+
+		            entity = optional.get();           
+
+		        }else {
+			  
+		        	  entity = new OnboardingCheckEntity();		
+		        	  entity.setLatitude(request.getLatitude());
+		        	  entity.setVKID(vkidnumber);
+		        	  entity.setLongitude(request.getLongitude());
+		        	 
+		        }
+			 
+			  entity.setLatitude(request.getLatitude());
+
+		        entity.setLongitude(request.getLongitude());
+		    //    entity.setStatus(status);
+		        
+			uploadRepository.save(entity);
+			
+			response.setMessage("lat long saved successfully");
+            response.setStatus(true);
+        	return response;
+		  }catch(Exception e) {
+			  response.setMessage("error while saving lat long ");
+	            response.setStatus(false);
+	        	return response;
+		}
+	
+	}
+	
+	@Override
+	public Object viewApplication(PreOnboardingrequestDto request) {
+
+		String vkid = request.getVkid();
+
+		if (vkid != null && vkid.matches("^[A-Za-z0-9]{9}$")) {
+			Optional<JioOnboardingVklMasterEntity> vklapplicationno = vklmasterRepo.findByVKID(vkid);
+
+			JioOnboardingVklMasterEntity entity1 = vklapplicationno.get();
+
+			vkid = entity1.getApplicationNo();
+
+			vkid = vkid.substring(vkid.length() - 6);
+
+		}
+		PreOnbordingCommonResponseDto response = new PreOnbordingCommonResponseDto();
+
+		int vkidnumber = Integer.parseInt(vkid);
+
+		Optional<OnboardingCheckEntity> optional = uploadRepository.findByVKID(vkidnumber);
+		if(optional == null|| optional.isEmpty() ) {
+			response.setStatus(false);
+			response.setMessage("record is empty in database");
+			return response;
+		}
+		OnboardingCheckEntity  checkviewstatus = optional.get();
+		
+		  String viewstatus = checkviewstatus.getStatus();
+
+
+		if (viewstatus == null) {
+			response.setStatus(false);
+			response.setScreenstatus(false);
+			response.setMessage("record is empty");
+			return response;
+		}
+
+		OnboardingCheckEntity entity = optional.get();
+
+		// main table dto
+		PreOnboardingViewDto dto = new PreOnboardingViewDto();
+
+		// Integer.parseInt(vkid);
+
+		String.valueOf(vkid);
+		dto.setId(entity.getId());
+		dto.setLatitude(entity.getLatitude());
+		dto.setLongitude(entity.getLongitude());
+		dto.setVkid(String.valueOf(entity.getVKID()));
+		dto.setMainstatus(entity.getStatus());
+		dto.setRemark(entity.getRemark());
+		// dto.setImages(entity.get);
+
+		String applicationFolderPath = IMAGE_UPLOAD_DIRECTORY + "/" + vkid;
+
+		List<PreOnboardingImageResponseDto> imagelist = new ArrayList<>();
+
+		for (PreOnboardingCheckStatusEntity statuscheck : entity.getHistorylist()) {
+
+			String imageId = statuscheck.getImagesMaster().getImageid();
+
+			PreOnboardingImageResponseDto imageDto = new PreOnboardingImageResponseDto();
+
+			imageDto.setRemarks(statuscheck.getRemarks());
+
+			imageDto.setImageId(statuscheck.getImagesMaster().getImageid());
+
+			imageDto.setImageName(statuscheck.getImagesMaster().getImagename());
+
+			imageDto.setStatus(statuscheck.getStatus());
+
+			String[] extensions = { ".jpg", ".jpeg", ".png", ".pdf" };
+
+			String imageName = "";
+
+			for (String ext : extensions) {
+
+				String tempName = vkid + imageId + ext;
+
+				File imageFile = new File(applicationFolderPath + "/" + tempName);
+
+				if (imageFile.exists()) {
+
+					imageName = vkid + "/" + tempName;
+
+					break;
+				}
+			}
+
+			String imageUrl = image_URL + imageName;
+
+			imageDto.setImageurl(imageUrl);
+
+			imagelist.add(imageDto);
+		}
+
+		dto.setImages(imagelist);
+		dto.setScreenstatus(true);
+		dto.setMessage("Data view successfully");
+		return dto;
+	}
+
+	
+	@Override
+	public PreOnbordingCommonResponseDto submitApplication(PreOnboardingrequestDto dto) {
+		
+		Integer insertupdateid = (dto.getId());
+		
+	
+		
+		if (dto != null) {
+			System.out.println("dto::" + dto.getId());
+			if (dto.getId() == null) {
+				dto.setId(0);
+			}
+		}
+		log.info("insertupdateid::"+ insertupdateid);
+		String vkid = dto.getVkid();
+
+		if (vkid != null && vkid.matches("^[A-Za-z0-9]{9}$")) {
+
+			Optional<JioOnboardingVklMasterEntity> vklapplicationno = vklmasterRepo.findByVKID(vkid);
+
+			JioOnboardingVklMasterEntity entity1 = vklapplicationno.get();
+
+			vkid = entity1.getApplicationNo();
+
+			vkid = vkid.substring(vkid.length() - 6);
+
+			// int vkidNumber = Integer.parseInt(vkid);
+
+		}
+
+		int vkidnumber = Integer.parseInt(vkid);
+
+
+
+		String[] latitudes = {
+				dto.getImageoneLat(), 
+				dto.getImageTwoLat(), 
+				dto.getImageThreeLat(),
+				dto.getImageFourLat(), 
+				dto.getImageFiveLat(), 
+				dto.getImageSixLat() };
+
+		String[] longitudes = { 
+				dto.getImageoneLog(), 
+				dto.getImageTwoLog(), 
+				dto.getImageThreeLog(),
+				dto.getImageFourLog(), 
+				dto.getImageFiveLog(),
+				dto.getImageSixLog() };
+
+		PreOnbordingCommonResponseDto responsenew = new PreOnbordingCommonResponseDto();
+
+		Optional<OnboardingCheckEntity> optional = uploadRepository.findByVKID(vkidnumber);
+
+		Optional<OnboardingCheckEntity> checkinsert = uploadRepository.findByVKID(vkidnumber);
+
+		OnboardingCheckEntity updateinsert = checkinsert.get();
+
+		String checkupdateinsert = updateinsert.getStatus();
+		
+		if(updateinsert.getLatitude()==null ||updateinsert.getLongitude()==null) {
+			responsenew.setMessage("latitude and longitude is empty in database");
+			responsenew.setStatus(false);
+			return responsenew;
+			
+		}
+
+		Double lat = Double.parseDouble(updateinsert.getLatitude());
+
+		Double longi = Double.parseDouble(updateinsert.getLongitude());
+
+		// it is for submit application
+		if (insertupdateid == null ) {
+			
+			log.info("inside submit api");
+
+//			if (latitude == null || latitude.isEmpty() || latitude.isBlank() || longitude == null || longitude.isEmpty()
+//					|| longitude.isBlank()) {
+//
+//				responsenew.setMessage("latitude and longitude is empty");
+//				responsenew.setStatus(false);
+//
+//				return responsenew;
+//			}
+
+			
+			for (int i = 0; i < latitudes.length; i++) {
+
+			    double imageLat = Double.parseDouble(latitudes[i]);
+			    double imageLon = Double.parseDouble(longitudes[i]);
+
+			    double distance =
+			            calculateDistance(lat, longi, imageLat, imageLon);
+
+			    System.out.println("Distance :: " + distance);
+
+			    // Distance in meters
+			    if (distance > 100) {
+
+			        responsenew.setMessage(
+			                "Image " + (i + 1)
+			                + " location is more than 100 meters away"
+			        );
+
+			        responsenew.setStatus(false);
+
+			        return responsenew;
+			    }
+			}
+			
+			// log.info("request:" + dto.toString());
+
+			PreOnbordingCommonResponseDto response1 = new PreOnbordingCommonResponseDto();
+
+			MultipartFile[] images = { dto.getImage1(), dto.getImage2(), dto.getImage3(), dto.getImage4(),
+					dto.getImage5(), dto.getImage6(), dto.getImage7(), dto.getImage8() };
+
+			for (int i = 0; i < images.length; i++) {
+
+				if (images[i] == null || images[i].isEmpty()) {
+
+					response1.setMessage("message Image " + (i + 1) + " missing");
+					response1.setStatus(false);
+
+					return response1;
+				}
+			}
+			// Create Folder
+			Path folderPath = Paths.get(IMAGE_UPLOAD_DIRECTORY + File.separator + vkid);
+
+			File folder = folderPath.toFile();
+
+			if (!folder.exists()) {
+
+				folder.mkdirs();
+			}
+
+			// Save Images
+			for (int i = 0; i < images.length; i++) {
+
+				MultipartFile image = images[i];
+
+				if (image != null && !image.isEmpty()) {
+
+					String originalFileName = image.getOriginalFilename();
+
+					String extension = ".jpg";
+
+					if (originalFileName != null && originalFileName.contains(".")) {
+
+						extension = originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase();
+					}
+
+					if (i < 6) {
+
+						if (!extension.equals(".jpg") && !extension.equals(".jpeg") && !extension.equals(".png")) {
+
+							throw new RuntimeException("Only image allowed for Image " + (i + 1));
+						}
+
+					} else {
+
+						// Last 2 image or pdf
+						if (!extension.equals(".jpg") && !extension.equals(".jpeg") && !extension.equals(".png")
+								&& !extension.equals(".pdf")) {
+
+							throw new RuntimeException("Only image or pdf allowed for Image " + (i + 1));
+						}
+					}
+
+					String imageName = vkid + (i + 1) + extension;
+
+					Path imagePath = folderPath.resolve(imageName);
+					try {
+						Files.write(imagePath, image.getBytes());
+						System.out.println("Saved: " + imagePath);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+
+				}
+			}
+
+			Optional<OnboardingCheckEntity> inserupdatedata = uploadRepository.findByVKID(vkidnumber);
+
+			OnboardingCheckEntity entity;
+
+			int Generatedid = 0;
+
+			if (inserupdatedata.isPresent()) {
+
+				// Existing row → UPDATE
+				entity = inserupdatedata.get();
+
+			} else {
+
+				// New row → INSERT
+				entity = new OnboardingCheckEntity();
+				entity.setVKID(vkidnumber);
+			}
+			entity.setStatus("0");
+
+			OnboardingCheckEntity savedmain = uploadRepository.save(entity);
+			
+			System.out.println("savedmain::"+savedmain);
+			
+			Generatedid = savedmain.getId();
+
+			// OnboardingCheckEntity entity = new OnboardingCheckEntity();
+
+			// Generatedid = savedmain.getId();
+
+			List<JpbPreOnboardingImagesMasterEntity> masterImages = imagemater.findAll();
+
+			List<PreOnboardingCheckStatusEntity> historyList = new ArrayList<>();
+
+			for (int i = 0; i < images.length; i++) {
+
+				JpbPreOnboardingImagesMasterEntity masterImage = masterImages.get(i);
+
+				PreOnboardingCheckStatusEntity history = new PreOnboardingCheckStatusEntity();
+
+				history.setPreOnboardingCheck(savedmain);
+
+				history.setImagesMaster(masterImage);
+
+				history.setStatus(0);
+				
+				if(i< latitudes.length) {
+					history.setLatitude(latitudes[i]);
+				}else {
+					history.setLatitude(null);
+				}
+				
+				if(i< longitudes.length) {
+					history.setLongitude(longitudes[i]);
+				}else {
+					
+					history.setLongitude(null);
+				}
+				historyList.add(history);
+
+			}
+
+			PreOnbordingCommonResponseDto response = new PreOnbordingCommonResponseDto();
+			statuscheckRepository.saveAll(historyList);
+
+			response.setMessage("Application submitted successfully");
+
+			response.setStatus(true);
+
+			return response;
+
+			// it is for update application
+		} else {
+
+			
+			log.info("inside update api");
+			
+			if (vkid != null && vkid.matches("^[A-Za-z0-9]{9}$")) {
+				Optional<JioOnboardingVklMasterEntity> vklapplicationno = vklmasterRepo.findByVKID(vkid);
+
+				JioOnboardingVklMasterEntity entity1 = vklapplicationno.get();
+
+				vkid = entity1.getApplicationNo();
+
+				vkid = vkid.substring(vkid.length() - 6);
+
+				// int vkidNumber = Integer.parseInt(vkid);
+
+			}
+	
+			
+			String[] latitude = { dto.getImageoneLat(), 
+					dto.getImageTwoLat(), 
+					dto.getImageThreeLat(),
+					dto.getImageFourLat(), 
+					dto.getImageFiveLat(), 
+					dto.getImageSixLat() };
+
+			String[] longitude = { dto.getImageoneLog(), 
+					dto.getImageTwoLog(), 
+					dto.getImageThreeLog(),
+					dto.getImageFourLog(), 
+					dto.getImageFiveLog(),
+					dto.getImageSixLog() };
+			
+			for (int i = 0; i < latitude.length; i++) {
+
+			    if (latitude[i] == null || latitude[i].trim().isEmpty()
+			            || longitude[i] == null || longitude[i].trim().isEmpty()) {
+			        continue;
+			    }
+				
+			    double imageLat = Double.parseDouble(latitude[i]);
+			    double imageLon = Double.parseDouble(longitude[i]);
+
+			    double distance =
+			            calculateDistance(lat, longi, imageLat, imageLon);
+
+			   log.info("Distance :: " + distance);
+
+			    // Distance in meters
+			    if (distance > 100) {
+
+			        responsenew.setMessage(
+			                "Image " + (i + 1)
+			                + " location is more than 100 meters away"
+			        );
+
+			        responsenew.setStatus(false);
+
+			        return responsenew;
+			    }
+			}
+			
+			
+			
+			vkidnumber = Integer.parseInt(vkid);
+
+			Optional<OnboardingCheckEntity> checkstatus = uploadRepository.findByVKID(vkidnumber);
+
+			OnboardingCheckEntity entity = checkstatus.get();
+
+			String mainstatus = entity.getStatus();
+
+			PreOnbordingCommonResponseDto mainstatusresponse = new PreOnbordingCommonResponseDto();
+			if ("1".equals(mainstatus)) {
+
+				mainstatusresponse.setMessage("Application is already approved");
+				mainstatusresponse.setStatus(true);
+
+				return mainstatusresponse;
+			}
+
+			if ("0".equals(mainstatus)) {
+
+				mainstatusresponse.setMessage("Application is already submitted");
+				mainstatusresponse.setStatus(true);
+
+				return mainstatusresponse;
+			}
+
+			MultipartFile[] images = { dto.getImage1(), dto.getImage2(), dto.getImage3(), dto.getImage4(),
+					dto.getImage5(), dto.getImage6(), dto.getImage7(), dto.getImage8() };
+
+			Path folderPath = Paths.get(IMAGE_UPLOAD_DIRECTORY + File.separator + vkid);
+
+			PreOnbordingCommonResponseDto responseimage = new PreOnbordingCommonResponseDto();
+
+			try {
+
+				String[] extensions = { ".jpg", ".jpeg", ".png", ".pdf" };
+				for (int i = 0; i < images.length; i++) {
+
+					MultipartFile image = images[i];
+
+					if (image != null && !image.isEmpty()) {
+
+						String originalFileName = image.getOriginalFilename();
+
+						String extension = originalFileName.substring(originalFileName.lastIndexOf("."));
+
+						extension = extension.toLowerCase();
+
+						// First 6 files only images
+						if (i < 6) {
+
+							if (!extension.equals(".jpg") && !extension.equals(".jpeg") && !extension.equals(".png")) {
+
+								throw new RuntimeException("Only image files allowed for Image " + (i + 1));
+							}
+						}
+						if (i == 6 || i == 7) {
+
+							if (!extension.equals(".jpg") && !extension.equals(".jpeg") && !extension.equals(".png")
+									&& !extension.equals(".pdf")) {
+
+								throw new RuntimeException("Only image or pdf allowed for Image " + (i + 1));
+							}
+						}
+
+						for (String ext : extensions) {
+
+							Path oldImagePath = folderPath.resolve(vkid + (i + 1) + ext);
+
+							if (Files.exists(oldImagePath)) {
+
+								Files.delete(oldImagePath);
+
+								System.out.println("Deleted old image: " + oldImagePath);
+							}
+						}
+					}
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+				responseimage.setMessage("error deleting images");
+				responseimage.setStatus(false);
+				return responseimage;
+			}
+			int id = dto.getId();
+
+			for (int i = 0; i < images.length; i++) {
+
+				MultipartFile image = images[i];
+
+				if (image == null || image.isEmpty()) {
+
+					continue;
+				}
+
+				// Path folderPath = Paths.get(IMAGE_UPLOAD_DIRECTORY + File.separator + vkid);
+				int imagenumber = i + 1;
+
+				// String imagename = vkid + imagenumber + ".jpg";
+
+				String originalFileName = image.getOriginalFilename();
+
+				String extension = originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase();
+
+				String imagename = vkid + imagenumber + extension;
+
+				Path imagePath = folderPath.resolve(imagename);
+
+				try {
+
+					Files.write(imagePath, image.getBytes());
+
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+
+				Optional<PreOnboardingCheckStatusEntity> optionalStatus = statuscheckRepository
+						.findByPreOnboardingCheckIdAndImagesMasterImageid(id, String.valueOf(imagenumber));
+
+				if (optionalStatus.isPresent()) {
+					PreOnboardingCheckStatusEntity status = optionalStatus.get();
+
+					status.setStatus(0);
+	
+					if(i< latitude.length) {
+						status.setLatitude(latitude[i]);
+					}else {
+						status.setLatitude(null);
+					}
+					
+					if(i< longitude.length) {
+						status.setLongitude(longitude[i]);
+					}else {
+						
+						status.setLongitude(null);
+					}
+
+					statuscheckRepository.save(status);
+				}
+
+				Optional<OnboardingCheckEntity> updatemainttatus = uploadRepository.findByVKID(vkidnumber);
+
+				if (optionalStatus.isPresent()) {
+
+					OnboardingCheckEntity status = updatemainttatus.get();
+
+					// RESET STATUS
+					status.setStatus("0");
+					
+					
+
+					uploadRepository.save(status);
+				}
+
+			}
+			PreOnbordingCommonResponseDto updatedresponse = new PreOnbordingCommonResponseDto();
+
+			updatedresponse.setMessage("Application updated successfully");
+
+			// response.put("pre_onboarding_id", Generatedid);
+			updatedresponse.setStatus(false);
+
+			return updatedresponse;
+
+		}
+	}
+
+	private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+
+		final int EARTH_RADIUS = 6371000; // meters
+
+		double dLat = Math.toRadians(lat2 - lat1);
+		double dLon = Math.toRadians(lon2 - lon1);
+
+		double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(Math.toRadians(lat1))
+				* Math.cos(Math.toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+		double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+		return EARTH_RADIUS * c;
+	}
+
+}

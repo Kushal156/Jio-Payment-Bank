@@ -1,0 +1,78 @@
+spring.application.name=Jio-Payement-Bank
+server.port=8090
+
+# DB connection
+spring.datasource.url=jdbc:sqlserver://192.168.121.15:1433;databaseName=VKMSSIT;trustServerCertificate=true
+spring.datasource.username=KushalSardarSit
+spring.datasource.password=KushalSardarSit@334401@
+spring.datasource.driverClassName=com.microsoft.sqlserver.jdbc.SQLServerDriver
+spring.jpa.show-sql=false
+
+#Agent URL's
+tokenURL=https://sit-apig.test.jiobank.in/jpb/v1/app/authenticate
+saveAgentURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/app-mgmt/partner/api/onboarding
+agentInfoURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/v1/app/agent/getAgentUserInformation/
+
+
+#Customer URL's
+generateOtpURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/app-mgmt/jpb/process-request
+applicationStatusURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/app-mgmt/jpb/application/status
+previewURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/app-mgmt/jpb/application/details
+			   
+#Scheduler URL's
+subscribtionsURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/v1/crm/getCommonCodeByKey/SA_SUBSCRIPTIONS
+getConsentsURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/v1/consent/consents
+getPinDetails=https://sit-apig.test.jiobank.in/jpb/v1/app/crm/getPincode/
+SMSURL=https://vkmssit.vakrangee.in/email-sms-gateway/sms-service-airtel
+
+#SMS Api Key
+apiKey=c4f67d09ff264a1ac9b0bdf61676d255c6b273d5b9634e5c951a3718e90bc86d
+
+#Pre-Check Image Upload Directory
+precheck.jpb.url=D:/bankingjio/uploadedimages
+
+jio.onbording.url = http://vkmssit.vakrangee.in:8090/uploadedimages/
+
+
+#Bio metric data
+SA=SKJIOPAYB1
+appCode=BCAPP
+
+#Imp Inputs
+purpose=2
+channelID=7245
+clientID=2e39b923eb6ce56173f35f777071e5a2
+authenticateMode=20
+AppName=Jio Payment Bank
+SecretCode=f31c49a52b8374709c94a46443b199d200c964b30d10e1b191ae6d867ef718d2
+PublicKeyPath=D:/Vakrangee.it/API Documentation/Jio Payment Bank/publicKey 1.pem
+
+
+PublicKey=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkGJZ9gZuStr8ZJyDOsZvFN90nqKa+j7GJ4c/eSEY+F4JnQ0A+lzZ75+5xpF1Tey0jCnAbhK6/KJ/xZjwXMMBfOfCCjicmpn5hrkYwEwaM6pCteJc4YigbcQn6PD1Yk5d1hIKDG+2X5P47gGYg8ppJ78svgaOt3hth454Nkhq9EE7rslh8blYiK75ntOX/ikDyYCqM/+7K4jVGVukDcMEPgGCb1Q3nMgXfCfE0e0dSCmY4s/1DkyUxa5AKgRn+u4atM3Zw0lUaG+/W/SF6fTuE6d7lFg+V0GiNNVvqmRQ7t3r8Q8FN1EhLEMai6kUL+3EH6NcqZnwqKtuptJVKkO0bQIDAQAB
+agentId=10402602363483996000
+
+#static values for Customer API's
+applicationType=CustomerOnboarding
+applicationSubType=SAVINGS
+oranizationName=7245
+countryCode=91
+apiVersion=2.0
+contanctType=MOBILE
+country=India
+
+
+spring.servlet.multipart.max-file-size=10GB
+spring.servlet.multipart.max-request-size=10GB
+server.tomcat.max-swallow-size=-1
+server.tomcat.connection-timeout=600000
+
+#Loggers config---------------------------------------------
+logging.level.root=INFO
+logging.level.com.yourpackage=DEBUG
+logging.file.name=logs/app.log
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger - %msg%n
+logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n
+logging.level.com.microsoft.sqlserver.jdbc.internals.TDS.Channel=ERROR
+
+
+sms.service.airtel.url=https://vkmssit.vakrangee.in/email-sms-gateway/sms-service-airtel

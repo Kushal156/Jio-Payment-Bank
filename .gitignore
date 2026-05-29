@@ -1,0 +1,37 @@
+# Maven
+target/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# VS Code
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Build Files
+*.jar
+*.war
+
+# Environment Files
+application-prod.properties
+application-sit.properties
+application-uat.properties
+
+# Certificates
+*.jks
+*.p12
+*.pem
+*.key

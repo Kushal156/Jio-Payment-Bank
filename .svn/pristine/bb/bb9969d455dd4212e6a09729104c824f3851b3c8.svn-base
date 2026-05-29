@@ -1,0 +1,36 @@
+package com.jpb.DTO;
+
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import lombok.Data;
+import lombok.ToString;
+
+@Data
+@ToString
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class PersonDTO {
+
+    private String personType; // INDIVIDUAL
+    
+    //new param for submit application
+    private PersonalDetailsDTO personalDetails;
+    
+    private FinancialDetailsDTO financialDetails;
+    private String externalId;
+
+    private List<AddressDTO> address;
+    private List<ContactDetailsDTO> contactDetails;
+    
+    //Customer Onboarding param
+    private String personId;
+    
+    //Preview Application param
+    private Boolean existingPerson;
+    private Boolean pepFlag;
+    private Boolean blacklisted;
+    private List<FamilyMemberDTO> familyMembers;
+}

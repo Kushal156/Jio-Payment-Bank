@@ -1,0 +1,17 @@
+package com.jpb.Repository;
+
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import com.jpb.Entity.AgentMasterEntity;
+
+public interface AgentMasterRepository extends JpaRepository<AgentMasterEntity, Long> {
+
+	Optional<AgentMasterEntity> findByApplicationNumber(String applicationNumber);
+
+	Optional<AgentMasterEntity> findByExternalAppRefNumber(String agentId);
+	
+	Optional<AgentMasterEntity> findByVkidAndJioAgentIdIsNotNull(String vkid);
+}

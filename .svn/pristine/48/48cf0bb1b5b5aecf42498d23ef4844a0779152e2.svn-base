@@ -1,0 +1,259 @@
+2026-05-16 08:48:46 WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=13h27m29s461ms19µs800ns).
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:92 ClientConnectionId: bc923b2a-cd90-4c21-8dfc-aeae86850c3c (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:87 ClientConnectionId: 83eb210f-8e8d-4b24-ae89-95d1d0e69136 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:85 ClientConnectionId: 0cb47cd9-a323-40bd-b5ad-1d6ddea91731 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:90 ClientConnectionId: 8168c143-1c7c-428a-9c78-c6903bdb9d61 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:86 ClientConnectionId: 2da3d309-4c17-4d70-b4bf-d6752b67e32a (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:91 ClientConnectionId: e15abd0e-46b9-4984-8f59-041b18ccaeee (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:88 ClientConnectionId: eccaf8ac-a51d-4a35-ab42-b8eead99b1e8 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:89 ClientConnectionId: b1b8543f-fe87-4494-8dba-d72b586fbe21 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:94 ClientConnectionId: e43010ef-b1ee-42b5-8f9a-38438fec32f5 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 08:48:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:93 ClientConnectionId: d8d6aac6-7c9e-4673-8484-3e0e4b27ca50 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:36:43 INFO  com.jpb.JioPayementBankApplication - Starting JioPayementBankApplication using Java 21.0.3 with PID 5216 (D:\Vakrangee.it\Jio-Payement-Bank\target\classes started by Kushals in D:\Vakrangee.it\Jio-Payement-Bank)
+2026-05-16 11:36:43 INFO  com.jpb.JioPayementBankApplication - No active profile set, falling back to 1 default profile: "default"
+2026-05-16 11:36:46 INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-16 11:36:46 INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 79 ms. Found 9 JPA repository interfaces.
+2026-05-16 11:36:46 INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8090 (http)
+2026-05-16 11:36:47 INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-16 11:36:47 INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.20]
+2026-05-16 11:36:47 INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 3926 ms
+2026-05-16 11:36:47 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-05-16 11:36:47 INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection ConnectionID:1 ClientConnectionId: 1c94cdd0-8a95-4097-975b-6efa36b12a19
+2026-05-16 11:36:47 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-05-16 11:36:47 INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-05-16 11:36:48 INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.7.Final
+2026-05-16 11:36:48 INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-16 11:36:48 WARN  org.hibernate.orm.core - HHH000511: The 11.0.0 version for [org.hibernate.dialect.SQLServerDialect] is no longer supported, hence certain features may not work properly.The minimum supported version is 12.0.0. Check the community dialects project for available legacy versions.
+2026-05-16 11:36:48 INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:sqlserver://192.168.121.15:1433;concatNullYieldsNull=ON;quotedIdentifier=ON;connectRetryInterval=10;connectRetryCount=1;maxResultBuffer=-1;sendTemporalDataTypesAsStringForBulkCopy=true;delayLoadingLobs=true;useFmtOnly=false;vectorTypeSupport=v1;cacheBulkCopyMetadata=false;bulkCopyForBatchInsertAllowEncryptedValueModifications=false;bulkCopyForBatchInsertTableLock=false;bulkCopyForBatchInsertKeepNulls=false;bulkCopyForBatchInsertKeepIdentity=false;bulkCopyForBatchInsertFireTriggers=false;bulkCopyForBatchInsertCheckConstraints=false;bulkCopyForBatchInsertBatchSize=0;useBulkCopyForBatchInsert=false;cancelQueryTimeout=-1;sslProtocol=TLS;calcBigDecimalPrecision=false;useDefaultJaasConfig=false;jaasConfigurationName=SQLJDBCDriver;statementPoolingCacheSize=0;serverPreparedStatementDiscardThreshold=10;enablePrepareOnFirstPreparedStatementCall=false;fips=false;socketTimeout=0;authentication=NotSpecified;authenticationScheme=nativeAuthentication;xopenStates=false;datetimeParameterType=datetime2;sendTimeAsDatetime=true;replication=false;trustStoreType=JKS;trustServerCertificate=true;TransparentNetworkIPResolution=true;iPAddressPreference=IPv4First;serverNameAsACE=false;sendStringParametersAsUnicode=true;selectMethod=direct;responseBuffering=adaptive;queryTimeout=-1;packetSize=8000;multiSubnetFailover=false;loginTimeout=30;lockTimeout=-1;lastUpdateCount=true;useDefaultGSSCredential=false;prepareMethod=prepexec;encrypt=True;disableStatementPooling=true;databaseName=VKMSSIT;columnEncryptionSetting=Disabled;applicationName=Microsoft JDBC Driver for SQL Server;applicationIntent=readwrite;]
+	Database driver: Microsoft JDBC Driver 13.2 for SQL Server
+	Database dialect: SQLServerDialect
+	Database version: 11.0
+	Default catalog/schema: VKMSSIT/dbo
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 128
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-05-16 11:36:50 INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-16 11:36:50 INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-16 11:36:50 INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-05-16 11:36:51 WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-05-16 11:36:51 INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8090 (http) with context path '/'
+2026-05-16 11:36:51 INFO  com.jpb.JioPayementBankApplication - Started JioPayementBankApplication in 9.435 seconds (process running for 11.282)
+2026-05-16 11:37:40 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-16 11:37:40 INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-05-16 11:37:40 INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 0 ms
+2026-05-16 11:37:56 INFO  com.jpb.JioPayementBankApplication - Starting JioPayementBankApplication using Java 21.0.3 with PID 16868 (D:\Vakrangee.it\Jio-Payement-Bank\target\classes started by Kushals in D:\Vakrangee.it\Jio-Payement-Bank)
+2026-05-16 11:37:56 INFO  com.jpb.JioPayementBankApplication - No active profile set, falling back to 1 default profile: "default"
+2026-05-16 11:37:56 INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-16 11:37:56 INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 50 ms. Found 9 JPA repository interfaces.
+2026-05-16 11:37:57 INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8090 (http)
+2026-05-16 11:37:57 INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-16 11:37:57 INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.20]
+2026-05-16 11:37:57 INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1038 ms
+2026-05-16 11:37:57 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-05-16 11:37:57 INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection ConnectionID:1 ClientConnectionId: f370fc85-1b00-44a1-bd1b-01fad5862a43
+2026-05-16 11:37:57 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-05-16 11:37:57 INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-05-16 11:37:57 INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.7.Final
+2026-05-16 11:37:58 INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-16 11:37:58 WARN  org.hibernate.orm.core - HHH000511: The 11.0.0 version for [org.hibernate.dialect.SQLServerDialect] is no longer supported, hence certain features may not work properly.The minimum supported version is 12.0.0. Check the community dialects project for available legacy versions.
+2026-05-16 11:37:58 INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:sqlserver://192.168.121.15:1433;concatNullYieldsNull=ON;quotedIdentifier=ON;connectRetryInterval=10;connectRetryCount=1;maxResultBuffer=-1;sendTemporalDataTypesAsStringForBulkCopy=true;delayLoadingLobs=true;useFmtOnly=false;vectorTypeSupport=v1;cacheBulkCopyMetadata=false;bulkCopyForBatchInsertAllowEncryptedValueModifications=false;bulkCopyForBatchInsertTableLock=false;bulkCopyForBatchInsertKeepNulls=false;bulkCopyForBatchInsertKeepIdentity=false;bulkCopyForBatchInsertFireTriggers=false;bulkCopyForBatchInsertCheckConstraints=false;bulkCopyForBatchInsertBatchSize=0;useBulkCopyForBatchInsert=false;cancelQueryTimeout=-1;sslProtocol=TLS;calcBigDecimalPrecision=false;useDefaultJaasConfig=false;jaasConfigurationName=SQLJDBCDriver;statementPoolingCacheSize=0;serverPreparedStatementDiscardThreshold=10;enablePrepareOnFirstPreparedStatementCall=false;fips=false;socketTimeout=0;authentication=NotSpecified;authenticationScheme=nativeAuthentication;xopenStates=false;datetimeParameterType=datetime2;sendTimeAsDatetime=true;replication=false;trustStoreType=JKS;trustServerCertificate=true;TransparentNetworkIPResolution=true;iPAddressPreference=IPv4First;serverNameAsACE=false;sendStringParametersAsUnicode=true;selectMethod=direct;responseBuffering=adaptive;queryTimeout=-1;packetSize=8000;multiSubnetFailover=false;loginTimeout=30;lockTimeout=-1;lastUpdateCount=true;useDefaultGSSCredential=false;prepareMethod=prepexec;encrypt=True;disableStatementPooling=true;databaseName=VKMSSIT;columnEncryptionSetting=Disabled;applicationName=Microsoft JDBC Driver for SQL Server;applicationIntent=readwrite;]
+	Database driver: Microsoft JDBC Driver 13.2 for SQL Server
+	Database dialect: SQLServerDialect
+	Database version: 11.0
+	Default catalog/schema: VKMSSIT/dbo
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 128
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-05-16 11:37:59 INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-16 11:37:59 INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-16 11:37:59 INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-05-16 11:37:59 WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-05-16 11:38:00 WARN  o.s.b.w.s.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2026-05-16 11:38:00 INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-05-16 11:38:00 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-05-16 11:38:00 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-05-16 11:38:00 INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-05-16 11:38:00 ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8090 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8090 or configure this application to listen on another port.
+
+2026-05-16 11:38:53 WARN  o.s.b.t.j.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer - 
+
+Found multiple occurrences of org.json.JSONObject on the class path:
+
+	jar:file:/C:/Users/kushals/.m2/repository/com/vaadin/external/google/android-json/0.0.20131108.vaadin1/android-json-0.0.20131108.vaadin1.jar!/org/json/JSONObject.class
+	jar:file:/C:/Users/kushals/.m2/repository/org/json/json/20231013/json-20231013.jar!/org/json/JSONObject.class
+
+You may wish to exclude one of them to ensure predictable runtime behavior
+
+2026-05-16 11:38:53 INFO  c.j.JioPayementBankApplicationTests - Starting JioPayementBankApplicationTests using Java 21.0.3 with PID 16560 (started by Kushals in D:\Vakrangee.it\Jio-Payement-Bank)
+2026-05-16 11:38:53 INFO  c.j.JioPayementBankApplicationTests - No active profile set, falling back to 1 default profile: "default"
+2026-05-16 11:38:56 INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-16 11:38:58 INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 2410 ms. Found 9 JPA repository interfaces.
+2026-05-16 11:38:59 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-05-16 11:39:00 INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection ConnectionID:1 ClientConnectionId: 72185266-d183-44e7-a587-c2171d7ba730
+2026-05-16 11:39:00 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-05-16 11:39:00 INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-05-16 11:39:00 INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.7.Final
+2026-05-16 11:39:01 INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-16 11:39:01 WARN  org.hibernate.orm.core - HHH000511: The 11.0.0 version for [org.hibernate.dialect.SQLServerDialect] is no longer supported, hence certain features may not work properly.The minimum supported version is 12.0.0. Check the community dialects project for available legacy versions.
+2026-05-16 11:39:01 INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:sqlserver://192.168.121.15:1433;concatNullYieldsNull=ON;quotedIdentifier=ON;connectRetryInterval=10;connectRetryCount=1;maxResultBuffer=-1;sendTemporalDataTypesAsStringForBulkCopy=true;delayLoadingLobs=true;useFmtOnly=false;vectorTypeSupport=v1;cacheBulkCopyMetadata=false;bulkCopyForBatchInsertAllowEncryptedValueModifications=false;bulkCopyForBatchInsertTableLock=false;bulkCopyForBatchInsertKeepNulls=false;bulkCopyForBatchInsertKeepIdentity=false;bulkCopyForBatchInsertFireTriggers=false;bulkCopyForBatchInsertCheckConstraints=false;bulkCopyForBatchInsertBatchSize=0;useBulkCopyForBatchInsert=false;cancelQueryTimeout=-1;sslProtocol=TLS;calcBigDecimalPrecision=false;useDefaultJaasConfig=false;jaasConfigurationName=SQLJDBCDriver;statementPoolingCacheSize=0;serverPreparedStatementDiscardThreshold=10;enablePrepareOnFirstPreparedStatementCall=false;fips=false;socketTimeout=0;authentication=NotSpecified;authenticationScheme=nativeAuthentication;xopenStates=false;datetimeParameterType=datetime2;sendTimeAsDatetime=true;replication=false;trustStoreType=JKS;trustServerCertificate=true;TransparentNetworkIPResolution=true;iPAddressPreference=IPv4First;serverNameAsACE=false;sendStringParametersAsUnicode=true;selectMethod=direct;responseBuffering=adaptive;queryTimeout=-1;packetSize=8000;multiSubnetFailover=false;loginTimeout=30;lockTimeout=-1;lastUpdateCount=true;useDefaultGSSCredential=false;prepareMethod=prepexec;encrypt=True;disableStatementPooling=true;databaseName=VKMSSIT;columnEncryptionSetting=Disabled;applicationName=Microsoft JDBC Driver for SQL Server;applicationIntent=readwrite;]
+	Database driver: Microsoft JDBC Driver 13.2 for SQL Server
+	Database dialect: SQLServerDialect
+	Database version: 11.0
+	Default catalog/schema: VKMSSIT/dbo
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 128
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-05-16 11:39:02 INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-16 11:39:02 INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-16 11:39:02 INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-05-16 11:39:03 WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-05-16 11:39:03 INFO  c.j.JioPayementBankApplicationTests - Started JioPayementBankApplicationTests in 10.835 seconds (process running for 13.432)
+2026-05-16 11:39:07 INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-05-16 11:39:07 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-05-16 11:39:07 INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-05-16 11:49:06 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:9 ClientConnectionId: 5e3d1d54-9de2-4a2b-aaf9-b5435e351276 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:49:08 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:2 ClientConnectionId: b58ebdcd-a0b5-4a97-8af9-c140a6a25812 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:49:14 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:1 ClientConnectionId: 1c94cdd0-8a95-4097-975b-6efa36b12a19 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:49:25 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:6 ClientConnectionId: 89e7612c-8ead-405c-bb8b-6aa251b8f8c3 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:49:51 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:7 ClientConnectionId: b6789aad-23c3-4a02-8abd-f8420201d110 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:49:57 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:5 ClientConnectionId: 6b751a05-14d9-4824-86ea-21bf7cda4df2 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:50:27 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:8 ClientConnectionId: 2afa71c6-45d4-4077-98e0-8e74ecf0d142 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:50:37 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:4 ClientConnectionId: 632de7aa-2eea-488c-9439-c4071313300a (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:50:45 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:10 ClientConnectionId: b7f2d1ce-db11-4672-b1ba-8d450da35d86 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:50:47 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection ConnectionID:3 ClientConnectionId: 683bdda5-6f30-43d4-82b8-48e0d7ba5cd0 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
+2026-05-16 11:50:58 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Pool is empty, failed to create/setup connection (4f6cc0a0-b7ee-4f02-9f5d-49308c21d72c)
+com.microsoft.sqlserver.jdbc.SQLServerException: The TCP/IP connection to the host 192.168.121.15, port 1433 has failed. Error: "Connect timed out. Verify the connection properties. Make sure that an instance of SQL Server is running on the host and accepting TCP/IP connections at the port. Make sure that TCP connections to the port are not blocked by a firewall.".
+	at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDriverError(SQLServerException.java:250)
+	at com.microsoft.sqlserver.jdbc.SQLServerException.convertConnectExceptionToSQLServerException(SQLServerException.java:316)
+	at com.microsoft.sqlserver.jdbc.SocketFinder.findSocket(IOBuffer.java:2611)
+	at com.microsoft.sqlserver.jdbc.TDSChannel.open(IOBuffer.java:736)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectHelper(SQLServerConnection.java:4201)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.login(SQLServerConnection.java:3817)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectInternal(SQLServerConnection.java:3591)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connect(SQLServerConnection.java:2286)
+	at com.microsoft.sqlserver.jdbc.SQLServerDriver.connect(SQLServerDriver.java:1371)
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144)
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:373)
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:210)
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+2026-05-16 11:52:03 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Pool is empty, failed to create/setup connection (5ba58868-6491-4b50-8af7-4363759850f8)
+com.microsoft.sqlserver.jdbc.SQLServerException: The TCP/IP connection to the host 192.168.121.15, port 1433 has failed. Error: "Connect timed out. Verify the connection properties. Make sure that an instance of SQL Server is running on the host and accepting TCP/IP connections at the port. Make sure that TCP connections to the port are not blocked by a firewall.".
+	at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDriverError(SQLServerException.java:250)
+	at com.microsoft.sqlserver.jdbc.SQLServerException.convertConnectExceptionToSQLServerException(SQLServerException.java:316)
+	at com.microsoft.sqlserver.jdbc.SocketFinder.findSocket(IOBuffer.java:2611)
+	at com.microsoft.sqlserver.jdbc.TDSChannel.open(IOBuffer.java:736)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectHelper(SQLServerConnection.java:4201)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.login(SQLServerConnection.java:3817)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectInternal(SQLServerConnection.java:3591)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connect(SQLServerConnection.java:2286)
+	at com.microsoft.sqlserver.jdbc.SQLServerDriver.connect(SQLServerDriver.java:1371)
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144)
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:373)
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:210)
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+2026-05-16 11:53:09 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Pool is empty, failed to create/setup connection (d14aaf87-054b-465c-918d-9e53c49cfa56)
+com.microsoft.sqlserver.jdbc.SQLServerException: The TCP/IP connection to the host 192.168.121.15, port 1433 has failed. Error: "Connect timed out. Verify the connection properties. Make sure that an instance of SQL Server is running on the host and accepting TCP/IP connections at the port. Make sure that TCP connections to the port are not blocked by a firewall.".
+	at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDriverError(SQLServerException.java:250)
+	at com.microsoft.sqlserver.jdbc.SQLServerException.convertConnectExceptionToSQLServerException(SQLServerException.java:316)
+	at com.microsoft.sqlserver.jdbc.SocketFinder.findSocket(IOBuffer.java:2611)
+	at com.microsoft.sqlserver.jdbc.TDSChannel.open(IOBuffer.java:736)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectHelper(SQLServerConnection.java:4201)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.login(SQLServerConnection.java:3817)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectInternal(SQLServerConnection.java:3591)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connect(SQLServerConnection.java:2286)
+	at com.microsoft.sqlserver.jdbc.SQLServerDriver.connect(SQLServerDriver.java:1371)
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144)
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:373)
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:210)
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+2026-05-16 11:54:14 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Pool is empty, failed to create/setup connection (5d5b8b53-bdc6-4dac-b809-4c9643a98de8)
+com.microsoft.sqlserver.jdbc.SQLServerException: The TCP/IP connection to the host 192.168.121.15, port 1433 has failed. Error: "Connect timed out. Verify the connection properties. Make sure that an instance of SQL Server is running on the host and accepting TCP/IP connections at the port. Make sure that TCP connections to the port are not blocked by a firewall.".
+	at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDriverError(SQLServerException.java:250)
+	at com.microsoft.sqlserver.jdbc.SQLServerException.convertConnectExceptionToSQLServerException(SQLServerException.java:316)
+	at com.microsoft.sqlserver.jdbc.SocketFinder.findSocket(IOBuffer.java:2611)
+	at com.microsoft.sqlserver.jdbc.TDSChannel.open(IOBuffer.java:736)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectHelper(SQLServerConnection.java:4201)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.login(SQLServerConnection.java:3817)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectInternal(SQLServerConnection.java:3591)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connect(SQLServerConnection.java:2286)
+	at com.microsoft.sqlserver.jdbc.SQLServerDriver.connect(SQLServerDriver.java:1371)
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144)
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:373)
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:210)
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+2026-05-16 11:55:21 WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Pool is empty, failed to create/setup connection (6b915a79-e75c-4d07-a4c3-1ea10c4d2eab)
+com.microsoft.sqlserver.jdbc.SQLServerException: Cannot open database "VKMSSIT" requested by the login. The login failed. ClientConnectionId:4f0f081e-7f75-4a6d-9d50-3e97f1828eaf
+	at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDatabaseError(SQLServerException.java:278)
+	at com.microsoft.sqlserver.jdbc.TDSTokenHandler.onEOF(tdsparser.java:329)
+	at com.microsoft.sqlserver.jdbc.TDSParser.parse(tdsparser.java:137)
+	at com.microsoft.sqlserver.jdbc.TDSParser.parse(tdsparser.java:42)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.sendLogon(SQLServerConnection.java:7423)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.logon(SQLServerConnection.java:5921)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection$LogonCommand.doExecute(SQLServerConnection.java:5853)
+	at com.microsoft.sqlserver.jdbc.TDSCommand.execute(IOBuffer.java:7825)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.executeCommand(SQLServerConnection.java:4828)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectHelper(SQLServerConnection.java:4261)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.login(SQLServerConnection.java:3817)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectInternal(SQLServerConnection.java:3591)
+	at com.microsoft.sqlserver.jdbc.SQLServerConnection.connect(SQLServerConnection.java:2286)
+	at com.microsoft.sqlserver.jdbc.SQLServerDriver.connect(SQLServerDriver.java:1371)
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144)
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:373)
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:210)
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752)
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)

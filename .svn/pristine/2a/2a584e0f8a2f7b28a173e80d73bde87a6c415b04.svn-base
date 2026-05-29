@@ -1,0 +1,13 @@
+package com.jpb.DTO;
+
+import lombok.Data;
+import lombok.ToString;
+
+@Data
+@ToString
+public class ApplicationDTO {
+
+	private String applicationName;
+	private String clientId;
+
+}

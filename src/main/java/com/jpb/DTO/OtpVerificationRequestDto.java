@@ -1,0 +1,16 @@
+package com.jpb.DTO;
+
+import lombok.Data;
+
+@Data
+public class OtpVerificationRequestDto {
+
+	
+	
+	private String application_id;
+    private String mobile_no ;
+    private String userOtp;
+    private String latitude;
+    private String longitude;
+    
+}

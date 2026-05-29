@@ -1,0 +1,294 @@
+package com.jpb.Controller;
+
+import java.io.File;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
+
+import com.jpb.DTO.JPBOnbardingLatLongRequestDto;
+import com.jpb.DTO.OtpVerificationRequestDto;
+
+import com.jpb.DTO.PreOnboardingrequestDto;
+import com.jpb.DTO.PreOnbordingCommonResponseDto;
+import com.jpb.DTO.UserSearchRequestDto;
+import com.jpb.Entity.JioOnboardingVklMasterEntity;
+import com.jpb.Repository.PreOnboardingVklMasterRepository;
+import com.jpb.Service.OnboardingCheckService;
+import com.jpb.ServiceImpl.UtilityService;
+
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+
+@RestController
+@RequestMapping("jpb")
+@Slf4j
+public class JPBPreOnbordingController {
+
+	public static ConcurrentHashMap<String, String> otpStore = new ConcurrentHashMap<>();
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
+	@Autowired
+	private PreOnboardingVklMasterRepository vklmasterRepo;
+
+	@Value("${SMSURL}")
+	private String smsurl;
+
+	@Value("${apiKey}")
+	private String apiKey;
+
+	@Autowired
+	RestTemplate rest;
+
+	@Autowired
+	private OnboardingCheckService OnboardingCheckServices;
+
+	@Autowired
+	UtilityService util;
+	
+	@PostMapping("/submitapplication")
+	public ResponseEntity<?> submitApplication(@Valid @ModelAttribute PreOnboardingrequestDto dto) {		Object response = OnboardingCheckServices.submitApplication(dto);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+
+	@PostMapping("/viewapplication")
+	public ResponseEntity<?> viewApplication(@Valid @RequestBody PreOnboardingrequestDto dto) {
+		Object response = OnboardingCheckServices.viewApplication(dto);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+	
+	
+	@PostMapping("/insertlatlong")
+	public ResponseEntity<?> insertlatlong(@Valid @RequestBody JPBOnbardingLatLongRequestDto dto){
+		PreOnbordingCommonResponseDto response = OnboardingCheckServices.insertlatlong(dto);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+
+	@PostMapping("/userSearch")
+	public ResponseEntity<?> userAvailable(@RequestBody UserSearchRequestDto request) {
+
+		String application_id = request.getApplication_id();
+		String mobile_no = request.getMobile_no();
+		String response = "User";
+		log.info("Request inside userAvailable: " + request.toString());
+		Map<String, Object> responseMap = new HashMap<>();
+
+		try {
+			// First, check the stored procedure result
+			String storedProcedureQuery = "{ CALL BankingJio.jio_Onboarding_Model(?, ?) }";
+
+			// Call the stored procedure with application_id and mobile_no as parameters for model view
+			Map<String, Object> storedProcResult = jdbcTemplate.queryForMap(storedProcedureQuery,
+					new Object[] { application_id, mobile_no });
+
+			String userCheck = (String) storedProcResult.get("userCheck");
+			String message = (String) storedProcResult.get("message");
+
+			if (userCheck != null && !("2".equalsIgnoreCase(userCheck))) {
+				Map<String, Object> errorResponse = new HashMap<>();
+				errorResponse.put("status", false);
+				errorResponse.put("message", message);
+
+				return new ResponseEntity<>(errorResponse, HttpStatus.OK);
+			}
+
+			if (storedProcResult != null && !storedProcResult.isEmpty()) {
+
+				// If user is found, send OTP and return data
+				response = "User is Present";
+
+				Random random = new Random();
+				int generateOtp = random.nextInt(900000) + 100000; // Generate a 6-digit OTP
+				String otp = String.valueOf(generateOtp);
+				String key = application_id + "-" + mobile_no; // Unique key combining application_id and mobile_no
+				otpStore.put(key, otp);
+
+				// Send SMS with OTP
+				util.sendSMS(mobile_no, generateOtp);
+				//sendSMS(mobile_no, generateOtp);
+
+				// Create a response with the user data
+				Map<String, Object> userData = new HashMap<>();
+				userData.put("status", true);
+				userData.put("message", "Otp sent to your mobile Number");
+
+				// userData.put("otp", otp);
+				return new ResponseEntity<>(userData, HttpStatus.OK);
+			} else {
+				// If user is not found
+				Map<String, Object> responseMap1 = new HashMap<>();
+				responseMap1.put("status", false);
+				responseMap1.put("message", "User not Present");
+				return new ResponseEntity<>(responseMap1, HttpStatus.OK);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			Map<String, Object> errorResponse = new HashMap<>();
+			errorResponse.put("status", false);
+			errorResponse.put("message", "An error occurred while processing the request");
+			return new ResponseEntity<>(errorResponse, HttpStatus.OK);
+		}
+	}
+
+	@PostMapping("/jioOnboardingverifyotp")
+	public ResponseEntity<?> verifyOtp(@RequestBody OtpVerificationRequestDto request) {
+		String application_id = request.getApplication_id();
+		String mobile_no = request.getMobile_no();
+		String userOtp = request.getUserOtp(); // OTP provided by the user
+		String latitude = request.getLatitude();
+		String longitude = request.getLongitude();
+		//String status = "-1";
+
+		Map<String, Object> userData = new HashMap<>();
+		try {
+
+			String storedProcedureQuery = "{ CALL BankingJio.jio_Onboarding_Model(?, ?) }";
+			// String checkDuplicateQuery = "exec atm_site_userSearch ?,?";
+			// Modify the code to handle when no rows are found
+			List<Map<String, Object>> resultList = jdbcTemplate.queryForList(storedProcedureQuery, application_id,
+					mobile_no);
+
+			if (resultList.isEmpty()) {
+				Map<String, Object> response1 = new HashMap<>();
+				response1.put("message", "No matching records found for the provided application ID and mobile number");
+				response1.put("status", false);
+				return new ResponseEntity<>(response1, HttpStatus.OK);
+			}
+
+			// Create the key to check the OTP in the HashMap
+			String key = application_id + "-" + mobile_no;
+
+			// Retrieve the stored OTP from the HashMap
+			String storedOtp = otpStore.get(key);
+
+			// Create a response map for user data
+			if (storedOtp != null && storedOtp.equals(userOtp)) {
+
+				try {
+
+					String checkquery = "select count(*) from BankingJio.pre_onboarding_check where VKID=? ";
+
+					Integer count = jdbcTemplate.queryForObject(checkquery, Integer.class, application_id);
+
+					if (count > 0) {
+
+						String updatequery = "update BankingJio.pre_onboarding_check set latitude =? , longitude=? where VKID=?";
+
+						int updatedrow = jdbcTemplate.update(updatequery, latitude, longitude, application_id);
+
+					} else {
+
+						String insertquery = "insert into BankingJio.pre_onboarding_check (VKID, latitude, longitude) VALUES (?,?,?)";
+
+						jdbcTemplate.update(insertquery, application_id, latitude, longitude);
+					}
+
+				} catch (Exception e) {
+					e.printStackTrace();
+					userData.put("message", "error while saving lat log");
+					userData.put("status", false);
+
+					return new ResponseEntity<>(userData, HttpStatus.OK);
+
+				}
+
+				// If OTP is valid, populate the user data and return it
+				userData.put("message", "otp verified successfully");
+				userData.put("status", true);
+				// Prepare images and their descriptions
+
+				return new ResponseEntity<>(userData, HttpStatus.OK);
+			} else {
+				// If OTP is invalid, return only the status and message
+				userData.put("status", false);
+				userData.put("message", "OTP is invalid");
+
+				return new ResponseEntity<>(userData, HttpStatus.OK);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			userData.put("status", false);
+			userData.put("message", "an error ocuured in sp");
+			return new ResponseEntity<>(userData, HttpStatus.OK);
+		}
+	}
+
+
+
+	@PostMapping("/check-eligibility")
+	public ResponseEntity<Map<String, Object>> checkEligibility(
+			@RequestParam String vkId
+			) {
+
+		Map<String, Object> response = new LinkedHashMap<>();
+
+		try {
+			String sql = "EXEC usp_checkVKID_eligbilityfor_JIO ?";
+
+			Map<String, Object> result = jdbcTemplate.queryForMap(sql, vkId);
+
+			String dbStatus = result.get("status") != null ? result.get("status").toString() : "";
+
+			// String jioBankVisible = "Yes".equalsIgnoreCase(dbStatus);
+			
+			log.info("jioBankVisible::"+ dbStatus);
+
+			Boolean jioBankVisible = false;
+			if ("Yes".equalsIgnoreCase(dbStatus)) {
+				
+				log.info("inside if 1::"+jioBankVisible );
+				jioBankVisible = true;
+				
+				log.info("jioBankVisible::"+ jioBankVisible);
+
+				
+			} else if ("No".equalsIgnoreCase(dbStatus)) {
+				
+				log.info("inside else if 1::"+jioBankVisible );
+				jioBankVisible = false;
+			}
+
+			response.put("status", true);
+			response.put("vkId", result.get("vk_id"));
+			response.put("totalPayment", result.get("total_payment"));
+			response.put("remarks", result.get("remarks"));
+			response.put("jioBankVisible", jioBankVisible);
+
+			return ResponseEntity.ok(response);
+
+		} catch (Exception e) {
+			response.put("status", false);
+			response.put("message", e.getMessage());
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+		}
+	}
+
+}

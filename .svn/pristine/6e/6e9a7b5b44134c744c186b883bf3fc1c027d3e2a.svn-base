@@ -1,0 +1,107 @@
+package com.jpb.Controller;
+
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.jpb.DTO.SaveAgentInputDTO;
+import com.jpb.DTO.SaveAgentResponseDTO;
+import com.jpb.Service.AgentService;
+import com.jpb.ServiceImpl.TestService;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+@RestController
+@RequestMapping("/agent")
+@CrossOrigin("*")
+public class AgentController {
+	
+	@Autowired
+	AgentService service;
+	
+	@Autowired
+	TestService testservice;
+	
+	@PostMapping("/save")
+	public ResponseEntity<SaveAgentResponseDTO> saveAgentDetails(@RequestBody SaveAgentInputDTO request, 
+			HttpServletRequest httpRequest) {
+		return service.saveAgentDetails(request, httpRequest);
+	}
+	
+	@PostMapping("/EKYC")
+	public ResponseEntity<?> agentEkyc(@RequestBody Map<String, Object> request, 
+			HttpServletRequest httpRequest) {
+		
+		String applicationNo = (String) request.get("applicationNo");
+	    String aadharNo = (String) request.get("aadharNo");
+	    String biometricDataBase64 = (String) request.get("biometricDataBase64");
+	    String externalRefNo = (String) request.get("externalAppRefNumber");
+	    String vkid = (String) request.get("vkid");
+	    String latitude = (String) request.get("latitude"); 
+	    String longitude = (String) request.get("longitude");
+		
+		return service.agentEkyc(applicationNo, aadharNo, biometricDataBase64, httpRequest, externalRefNo, vkid, latitude, longitude);
+	}
+	
+	@GetMapping("/status")
+	public ResponseEntity<?> agentStatus(@RequestBody Map<String, Object> request, HttpServletRequest httpRequest) {
+		String applicationNo = (String) request.get("applicationNo");
+		String latitude = (String) request.get("latitude"); 
+	    String longitude = (String) request.get("longitude");
+		
+		return service.agentStatus(applicationNo, httpRequest, latitude, longitude);
+	}
+	
+	@PostMapping("/pan-update")
+	public ResponseEntity<?> panUpdate(@RequestBody Map<String, Object> request, HttpServletRequest httpRequest) {
+		
+		String applicationNo = (String) request.get("applicationNo");
+		String panNumber = (String) request.get("panNumber");
+		String panName = (String) request.get("panName");
+		String dob = (String) request.get("dob");
+		String externalRefNo = (String) request.get("externalAppRefNumber");
+	    String vkid = (String) request.get("vkid");
+	    String latitude = (String) request.get("latitude"); 
+	    String longitude = (String) request.get("longitude");
+		
+//		String applicationNo = "7245REF177582231769288183";
+//		String panNumber = "AAAPA1334A";
+//		String panName = "SHEKHAR VERMA";
+//		String dob = "1993-09-15";
+		
+		return service.panUpdate(applicationNo, panNumber, panName, dob, httpRequest, externalRefNo, vkid, latitude, longitude);
+	}
+	
+	@PostMapping("/recall")
+	public ResponseEntity<?> recallApplication (@RequestBody Map<String, Object> request, HttpServletRequest httpRequest) {
+		
+		String applicationNo = (String) request.get("applicationNo");
+		String latitude = (String) request.get("latitude"); 
+	    String longitude = (String) request.get("longitude");
+		
+		return service.recallApplication(applicationNo, httpRequest, latitude, longitude);
+	}
+	
+//	@PostMapping("/info")
+//	public ResponseEntity<?> agentInfo(@RequestBody Map<String, Object> request, HttpServletRequest httpRequest) {
+//		
+//		String agentId = (String) request.get("agentId");
+//		String latitude = (String) request.get("latitude"); 
+//	    String longitude = (String) request.get("longitude");
+//		return service.agentInfo(agentId, httpRequest, latitude, longitude);
+//	}
+	
+	@GetMapping("/info")
+	public ResponseEntity<?> agentInfo() {
+		return service.agentInfo();
+	}
+
+}

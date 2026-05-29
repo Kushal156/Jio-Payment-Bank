@@ -1,0 +1,5 @@
+# Created at 2026-05-16T11:38:49.097
+Boot Manifest-JAR contains absolute paths in classpath 'D:\Vakrangee.it\Jio-Payement-Bank\target\test-classes'
+Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+'other' has different root
+

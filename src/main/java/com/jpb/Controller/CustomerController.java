@@ -1,0 +1,88 @@
+package com.jpb.Controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.jpb.DTO.CustomerInputRequestDTO;
+import com.jpb.Service.CustomerService;
+import com.jpb.ServiceImpl.SchedulerServiceImpl;
+import com.jpb.ServiceImpl.TestService;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+@RestController
+@RequestMapping("/customer")
+@CrossOrigin("*")
+public class CustomerController {
+	
+	@Autowired
+	CustomerService service;
+	
+	@Autowired
+	SchedulerServiceImpl scheduler;
+	
+	@Autowired
+	TestService testservice;
+	
+	@PostMapping("/generate-otp")
+	public ResponseEntity<?> generateOtp(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.generateOtp(request, httpRequest);
+	}
+	
+	@PostMapping("/verify-otp")
+	public ResponseEntity<?> verifyOtp(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.verifyOtp(request, httpRequest);
+	}
+	
+	@PostMapping("/resend-otp")
+	public ResponseEntity<?> resendOtp(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.resendOtp(request, httpRequest);
+	}
+	
+	@PostMapping("/send-email")
+	public ResponseEntity<?> sendEmail (@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.sendEmail(request, httpRequest);
+	}	
+	
+	@PostMapping("/verify-email")
+	public ResponseEntity<?> verifyEmail (@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.verifyEmail(request, httpRequest);
+	}
+	
+	@PostMapping("/resend-email")
+	public ResponseEntity<?> resendEmail (@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.resendEmail(request, httpRequest);
+	}
+	
+	@PostMapping("/pan-aadhar-verify")
+	public ResponseEntity<?> verify(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.verify(request, httpRequest);
+	}
+	
+	@PostMapping("/preview")
+	public ResponseEntity<?> preview(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.preview(request, httpRequest);
+	}
+	
+	@PostMapping("/customer-auth")
+	public ResponseEntity<?> customerAuth(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.customerAuth(request, httpRequest);
+	}
+	
+	@PostMapping("/submit-application")
+	public ResponseEntity<?> submitApp(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.submitApp(request, httpRequest);
+	}
+	
+	@PostMapping("/application-status")
+	public ResponseEntity<?> status(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		return service.applicationStatus(request, httpRequest);
+	}
+
+}

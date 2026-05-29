@@ -1,0 +1,2409 @@
+package com.jpb.ServiceImpl;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
+
+import com.jpb.Config.TokenManager;
+import com.jpb.DTO.AadhaarDTO;
+import com.jpb.DTO.AccountsDTO;
+import com.jpb.DTO.ActionDTO;
+import com.jpb.DTO.AddOnDTO;
+import com.jpb.DTO.AddressDTO;
+import com.jpb.DTO.ApplicationStatusResponseDTO;
+import com.jpb.DTO.AuthenticateEkycDTO;
+import com.jpb.DTO.BCDetailsDTO;
+import com.jpb.DTO.ContactDetailsDTO;
+import com.jpb.DTO.CustomerCommonRequestDTO;
+import com.jpb.DTO.CustomerEAuthRequestDTO;
+import com.jpb.DTO.CustomerEAuthResponseDTO;
+import com.jpb.DTO.CustomerInputRequestDTO;
+import com.jpb.DTO.CustomerPanAadharVerifyRequestDTO;
+import com.jpb.DTO.CustomerPanAadharVerifyResponseDTO;
+import com.jpb.DTO.GenerateOTPRequestDTO;
+import com.jpb.DTO.GenerateOtpResponseDTO;
+import com.jpb.DTO.GuardianDTO;
+import com.jpb.DTO.NomineeDTO;
+import com.jpb.DTO.OrganizationDTO;
+import com.jpb.DTO.PersonDTO;
+import com.jpb.DTO.PersonalDetailsDTO;
+import com.jpb.DTO.PreviewApplicationResponseDTO;
+import com.jpb.DTO.ProductDTO;
+import com.jpb.DTO.ResendOtpRequestDTO;
+import com.jpb.DTO.ResendOtpResponseDTO;
+import com.jpb.DTO.SecureDTO;
+import com.jpb.DTO.SubmitApplicationRequstDTO;
+import com.jpb.DTO.SubmitApplicationResponseDTO;
+import com.jpb.DTO.EmailOTPRequestDTO;
+import com.jpb.DTO.ErrorDetails;
+import com.jpb.DTO.FinancialDetailsDTO;
+import com.jpb.DTO.ValidationMethodsDTO;
+import com.jpb.DTO.VerifyOtpRequestDTO;
+import com.jpb.DTO.VerifyOtpResponseDTO;
+import com.jpb.Entity.AgentMasterEntity;
+import com.jpb.Entity.CustomerApiLogEntity;
+import com.jpb.Entity.CustomerHistoryEntity;
+import com.jpb.Entity.CustomerMasterEntity;
+import com.jpb.Entity.DebitTransactionEntity;
+import com.jpb.Repository.AgentMasterRepository;
+import com.jpb.Repository.CustomerApiLogRepository;
+import com.jpb.Repository.CustomerHistoryRepository;
+import com.jpb.Repository.CustomerMasterRepository;
+import com.jpb.Repository.DebitTransactionRepository;
+import com.jpb.Service.CustomerService;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.ObjectMapper;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+
+@Service
+@Slf4j
+public class CustomerServiceImpl implements CustomerService {
+
+	@Value("${generateOtpURL}")
+	private String URL;
+
+	@Value("${applicationStatusURL}")
+	private String applicationStatusURL;
+
+	@Value("${previewURL}")
+	private String previewURL;
+
+	@Value("${PublicKeyPath}")
+	private String keyPath;
+
+	// Static Values
+	@Value("${channelID}")
+	private String channelId;
+
+	@Value("${agentId}")
+	private String agentID;
+
+	@Value("${applicationType}")
+	private String applicationType;
+
+	@Value("${applicationSubType}")
+	private String applicationSubType;
+
+	@Value("${oranizationName}")
+	private String oranizationName;
+
+	@Value("${countryCode}")
+	private String countryCode;
+
+	@Value("${apiVersion}")
+	private String apiVersion;
+
+	@Value("${contanctType}")
+	private String contanctType;
+
+	@Value("${country}")
+	private String country;
+	
+	@Value("${serviceID}")
+	private String serviceID;
+
+	@Value("${SubServiceID}")
+	private String subServiceID;
+
+	@Value("${virtual.SubSubServiceID}")
+	private String virtualSubSubServiceID;
+
+	@Value("${physical.SubSubServiceID}")
+	private String physicalSubSubServiceID;
+	
+	@Value("${SubSubSubServiceID}")
+	private String subSubSubServiceID;
+
+	@Value("${walletID}")
+	private String walletID;
+
+	@Value("${TransactionAuthenticationType}")
+	private String transactionAuthenticationType;
+
+	@Value("${TransactionType}")
+	private String transactionType;
+
+	// Helper Services
+	@Autowired
+	TokenManager tokenManager;
+
+	@Autowired
+	AuthServiceImpl auth;
+
+	@Autowired
+	UtilityService util;
+
+	@Autowired
+	EncryptionService encrypt;
+
+	@Autowired
+	RestTemplate rest;
+
+	@Autowired
+	CustomerMasterRepository masterRepo;
+
+	@Autowired
+	CustomerApiLogRepository apiLogRepo;
+
+	@Autowired
+	CustomerHistoryRepository historyRepo;
+
+	@Autowired
+	AgentMasterRepository agentRepo;
+
+	@Autowired
+	DebitTransactionRepository debitRepo;
+
+	// Generate OTP
+	@Override
+	public ResponseEntity<?> generateOtp(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+		log.info("Generate OTP Request, mobile :: {}", input.getMobileNumber());
+
+		ObjectMapper mapper = new ObjectMapper();
+		CustomerMasterEntity master = new CustomerMasterEntity();
+		String requestJson = null;
+		String responseJson = null;
+		String agentId = null;
+		String externalRefNo = null; //"JPBV" + System.currentTimeMillis()
+		Integer masterId = null;
+		GenerateOtpResponseDTO finalResponse = new GenerateOtpResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+		try {			
+
+			if (input.getMobileNumber() == null || input.getMobileNumber().length() != 10) {
+				error.setCode("400");
+				error.setMessage("Invalid Mobile Number");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+				return ResponseEntity.ok(finalResponse);
+			}
+			
+			//Dedupe check for duplicate Mobile No & Application No
+			List<CustomerMasterEntity> dedupeCheck = masterRepo.findByMobileNo(input.getMobileNumber());
+			if(!dedupeCheck.isEmpty()) {
+				
+				Optional<CustomerMasterEntity> latestRecord = dedupeCheck.stream()
+						.filter(records -> (!"SUBMITTED".equalsIgnoreCase(records.getNextActionType())
+											&& (!"EXIT".equalsIgnoreCase(records.getNextActionSubType()))))
+						.max(Comparator.comparing(CustomerMasterEntity::getCreatedDateTime));
+						
+				if(latestRecord.isPresent()) {
+					CustomerMasterEntity customerDetails = latestRecord.get();
+					externalRefNo = customerDetails.getExternalAppRefNumber();
+					masterId = customerDetails.getId();
+					master = customerDetails;
+					
+					log.info("Resuming Previous Journery ------->");
+					log.info("Found existing active application. ApplicationNo :: {}, ExternalRefNo :: {}",
+							customerDetails.getApplicationNumber(),	externalRefNo);
+					
+				} else {
+					externalRefNo = "JPBV" + System.currentTimeMillis();
+					
+					//Save new records (SAVE CUSTOMER MASTER)
+					master = new CustomerMasterEntity();
+					master.setExternalAppRefNumber(externalRefNo);
+					master.setMobileNo(input.getMobileNumber());
+					master.setStatus("INITIATED");
+					master.setActionType("MOBILE_OTP");
+					master.setActionSubType("GENERATE");
+					master.setApplicationType(applicationType);
+					master.setApplicationSubType(applicationSubType);
+					master.setChannelId(channelId);
+					master.setOrganizationName(oranizationName);
+					master.setMobileNo(input.getMobileNumber());
+					master.setLatitude(input.getLatitude());
+					master.setLongitude(input.getLongitude());
+					master.setStage(1);
+					master.setCreatedDateTime(LocalDateTime.now());
+					master.setJioAgentId(agentId);
+					master.setVkid(input.getVkid());
+					
+					master = masterRepo.save(master);
+					masterId = master.getId();
+				}	
+			} else {
+				externalRefNo = "JPBV" + System.currentTimeMillis();
+				
+				//Save new records (SAVE CUSTOMER MASTER)
+				master = new CustomerMasterEntity();
+				master.setExternalAppRefNumber(externalRefNo);
+				master.setMobileNo(input.getMobileNumber());
+				master.setStatus("INITIATED");
+				master.setActionType("MOBILE_OTP");
+				master.setActionSubType("GENERATE");
+				master.setApplicationType(applicationType);
+				master.setApplicationSubType(applicationSubType);
+				master.setChannelId(channelId);
+				master.setOrganizationName(oranizationName);
+				master.setMobileNo(input.getMobileNumber());
+				master.setLatitude(input.getLatitude());
+				master.setLongitude(input.getLongitude());
+				master.setStage(1);
+				master.setCreatedDateTime(LocalDateTime.now());
+				master.setJioAgentId(agentId);
+				master.setVkid(input.getVkid());
+				
+				master = masterRepo.save(master);
+				masterId = master.getId();
+			}
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				auth.generateToken(httpRequest);
+			}
+
+			// Request
+			GenerateOTPRequestDTO request = new GenerateOTPRequestDTO();
+			request.setExternalAppRefNumber(externalRefNo);
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+
+			ActionDTO action = new ActionDTO();
+			action.setType("MOBILE_OTP");
+			action.setSubType("GENERATE");
+			request.setAction(action);
+
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			ContactDetailsDTO contact = new ContactDetailsDTO();
+			contact.setMobileNumber(input.getMobileNumber());
+
+			PersonDTO person = new PersonDTO();
+			person.setPersonType("INDIVIDUAL");
+			person.setContactDetails(Collections.singletonList(contact));
+
+			request.setPersons(Collections.singletonList(person));
+
+			BCDetailsDTO bcDetails = new BCDetailsDTO();
+			bcDetails.setUserId(agentId);
+			request.setBcDetails(bcDetails);
+
+			requestJson = mapper.writeValueAsString(request);
+
+			log.info("JSON Request for Generate OTP :: {}", requestJson);
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<GenerateOTPRequestDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+				log.info("JSON Raw Response for Generate OTP :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+				if (response != null) {
+				    error.setCode(String.valueOf(response.getStatusCode().value()));
+				    error.setMessage(response.getBody());
+				} else {
+				    error.setCode("500");
+				    error.setMessage("No response received from API");
+				}
+				
+				finalResponse.setError(error);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			responseJson = response.getBody();
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, GenerateOtpResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
+
+			// UPDATE MASTER (Response)
+			master.setStatus(finalResponse.getStatus());
+			master.setUpdatedDateTime(LocalDateTime.now());
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("GENERATE_OTP");
+			logEntity.setRequestPayload(requestJson);
+			logEntity.setResponsePayload(responseJson);
+			logEntity.setStatusCode(response.getStatusCode().value());
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(externalRefNo);
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("GENERATE_OTP");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("MOBILE_OTP");
+			history.setActionSubType("GENERATE");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setVkid(input.getVkid());
+			// agent ID yet to finalized--------------------------------
+			history.setJioAgentId(agentId);
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setApplicationNumber(finalResponse.getApplicationNumber());
+				master.setNextActionType(finalResponse.getNextAction().getType());
+				master.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				master.setStage(2);
+
+				// History
+				history.setNextActionType(finalResponse.getNextAction().getType());
+				history.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				history.setRemarks("OTP Received");
+			} else {
+				history.setRemarks("OTP Pending");
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+
+			log.error("Generate OTP Exception", e);
+
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+
+	// Verify OTP
+	@Override
+	@Transactional
+	public ResponseEntity<?> verifyOtp(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+		log.info("Verify OTP Request :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+		String agentId = null;
+		Integer masterId = null;
+		CustomerMasterEntity master = null;
+		VerifyOtpResponseDTO finalResponse = new VerifyOtpResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+		try {
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+
+			String publicKey = new String(Files.readAllBytes(Paths.get(keyPath))).trim();
+			log.info("Public Key :: {}", publicKey);
+
+			String encryptionKey = encrypt.generateRandomString(16);
+			String finalKey = encrypt.encryptRSA(encryptionKey, publicKey);
+			String encryptedOTP = encrypt.encryptAES(input.getOtp(), encryptionKey);
+
+			log.info("encryptionKey :: {}", encryptionKey);
+			log.info("finalKey :: {}", finalKey);
+			log.info("encryptedOTP :: {}", encryptedOTP);
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			// Request
+			VerifyOtpRequestDTO request = new VerifyOtpRequestDTO();
+
+			// Constant
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("MOBILE_OTP");
+			action.setSubType("VERIFY");
+			request.setAction(action);
+
+			// Organization
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			ContactDetailsDTO contact = new ContactDetailsDTO();
+			contact.setMobileNumber(input.getMobileNumber());
+			contact.setCountryCode(countryCode);
+			contact.setType(contanctType);
+
+			// Persons
+			PersonDTO person = new PersonDTO();
+			person.setContactDetails(Collections.singletonList(contact));
+			request.setPersons(Collections.singletonList(person));
+
+			// BCDetails
+			BCDetailsDTO bcDetails = new BCDetailsDTO();
+			bcDetails.setUserId(agentId);
+			request.setBcDetails(bcDetails);
+
+			// Secure
+			SecureDTO secure = new SecureDTO();
+			secure.setEncryptionKey(finalKey);
+			request.setSecure(secure);
+
+			// Validation Methods
+			ValidationMethodsDTO validation = new ValidationMethodsDTO();
+			validation.setValue(encryptedOTP);
+			request.setValidationMethods(Arrays.asList(validation));
+
+			log.info("Validate OTP Final Request :: {}", request);
+			log.info("JSON Request for Validate OTP :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<VerifyOtpRequestDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+				log.info("Verify OTP Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, VerifyOtpResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
+
+			// DB Activity History + API Logs + Master---------------------------------------------
+			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
+					input.getApplicationNumber(), input.getExternalAppRefNumber());
+
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
+			}
+
+			if (masterEntity.isPresent()) {
+				master = masterEntity.get();
+				masterId = master.getId();
+				log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
+
+				master.setActionType("MOBILE_OTP");
+				master.setActionSubType("VERIFY");
+				master.setStatus(finalResponse.getStatus());
+			}
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("VERIFY_OTP");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(response.getBody());
+			logEntity.setStatusCode(response.getStatusCode().value());
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(input.getExternalAppRefNumber());
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("VERIFY_OTP");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("MOBILE_OTP");
+			history.setActionSubType("VERIFY");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setJioAgentId(agentId);
+			history.setVkid(input.getVkid());
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setNextActionType(finalResponse.getNextAction().getType());
+				master.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				master.setStage(5);
+
+				// History
+				history.setNextActionType(finalResponse.getNextAction().getType());
+				history.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				history.setRemarks("OTP Verified");
+			} else {
+				history.setRemarks("OTP Verify Pending");
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+			// ---------------------------------------------
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Validate OTP Exception", e);
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+
+	// Re-Send OTP
+	@Override
+	@Transactional
+	public ResponseEntity<?> resendOtp(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+		log.info("Resend OTP Request From Customer :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+		String agentId = null;
+		Integer masterId = null;
+		CustomerMasterEntity master = null;
+		ResendOtpResponseDTO finalResponse = new ResendOtpResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+		try {
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			ResendOtpRequestDTO request = new ResendOtpRequestDTO();
+
+			// Request Building
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+			request.setApp(oranizationName);
+
+			// Organization
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("MOBILE_OTP");
+			action.setSubType("RESENDOTP");
+			request.setAction(action);
+
+			// BCDetails
+			BCDetailsDTO bcDetails = new BCDetailsDTO();
+			//bcDetails.setUserId(agentID);
+			bcDetails.setUserId(agentId);
+			request.setBcDetails(bcDetails);
+
+			log.info("Resend-OTP request :: {}", request.toString());
+			log.info("JSON Request for Resend OTP :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<ResendOtpRequestDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+				log.info("Resend OTP Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, ResendOtpResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
+
+			// DB Activity --------------------------------------------------------------
+			Optional<CustomerMasterEntity> masterEntity = masterRepo
+					.findByApplicationNumber(input.getApplicationNumber());
+
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No");
+			}
+
+			if (masterEntity.isPresent()) {
+				master = masterEntity.get();
+				masterId = master.getId();
+				log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
+
+				master.setActionType("MOBILE_OTP");
+				master.setActionSubType("RESENDOTP");
+				master.setStatus(finalResponse.getStatus());
+			}
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("RESEND_OTP");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(response.getBody());
+			logEntity.setStatusCode(response.getStatusCode().value());
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getApplicationNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(input.getApplicationNumber());
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("RESEND_OTP");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("MOBILE_OTP");
+			history.setActionSubType("RESENDOTP");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setJioAgentId(agentId);
+			history.setVkid(input.getVkid());
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setNextActionType("MOBILE_OTP");
+				master.setNextActionSubType("VERIFY");
+				master.setStage(2);
+
+				// History
+				history.setNextActionType("MOBILE_OTP");
+				history.setNextActionSubType("VERIFY");
+				history.setRemarks("OTP Sent Again");
+			} else {
+				history.setRemarks("Resend OTP Pending");
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+			// --------------------------------------------------------------
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Resend OTP Exception", e);
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+
+	// Send Email OTP
+	@Override
+	@Transactional
+	public ResponseEntity<?> sendEmail(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+		log.info("Send Email OTP Request from Customer :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+		String agentId = null;
+		Integer masterId = null;
+		CustomerMasterEntity master = null;
+		ErrorDetails error = new ErrorDetails();
+		ResendOtpResponseDTO finalResponse = new ResendOtpResponseDTO();
+		try {
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			// Request
+			EmailOTPRequestDTO request = new EmailOTPRequestDTO();
+
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("EMAIL_OTP");
+			action.setSubType("GENERATE");
+			request.setAction(action);
+
+			// Organisation
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			// Persons
+			PersonDTO person = new PersonDTO();
+			ContactDetailsDTO contanct = new ContactDetailsDTO();
+			contanct.setEmail(input.getEmailId());
+			person.setContactDetails(Collections.singletonList(contanct));
+			request.setPersons(Collections.singletonList(person));
+
+			BCDetailsDTO bcDetails = new BCDetailsDTO();
+			bcDetails.setUserId(agentId);
+			request.setBcDetails(bcDetails);
+
+			log.info("Send Email OTP Request :: {}", request.toString());
+			log.info("JSON Request for Email OTP :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<EmailOTPRequestDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+				log.info("Email OTP Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, ResendOtpResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
+
+			// DB Activity --------------------------------------------------------------
+			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
+					input.getApplicationNumber(), input.getExternalAppRefNumber());
+
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
+			}
+
+			if (masterEntity.isPresent()) {
+				master = masterEntity.get();
+				masterId = master.getId();
+				log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
+
+				master.setActionType("EMAIL_OTP");
+				master.setActionSubType("GENERATE");
+				master.setEmail(input.getEmailId());
+				master.setStatus(finalResponse.getStatus());
+			}
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("EMAIL_OTP");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(response.getBody());
+			logEntity.setStatusCode(response.getStatusCode().value());
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(input.getExternalAppRefNumber());
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("EMAIL_OTP");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("EMAIL_OTP");
+			history.setActionSubType("GENERATE");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setJioAgentId(agentId);
+			history.setVkid(input.getVkid());
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setNextActionType("EMAIL_OTP");
+				master.setNextActionSubType("VERIFY");
+				master.setStage(4);
+
+				// History
+				history.setNextActionType("EMAIL_OTP");
+				history.setNextActionSubType("VERIFY");
+				history.setRemarks("Email OTP Sent");
+			} else {
+				history.setRemarks("Email OTP Pending");
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+			// --------------------------------------------------------------
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Send Email OTP Exception", e);
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+
+	// Verify Email OTP
+	@Override
+	@Transactional
+	public ResponseEntity<?> verifyEmail(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		log.info("Verify Email OTP Request from Customer :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+		String agentId = null;
+		Integer masterId = null;
+		CustomerMasterEntity master = null;
+		ErrorDetails error = new ErrorDetails();
+		ResendOtpResponseDTO finalResponse = new ResendOtpResponseDTO();
+		try {
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+
+			String publicKey = new String(Files.readAllBytes(Paths.get(keyPath))).trim();
+			log.info("Public Key :: {}", publicKey);
+
+			String encryptionKey = encrypt.generateRandomString(16);
+//			String finalKey = encrypt.encryptRSA(encryptionKey, PublicKey);
+			String finalKey = encrypt.encryptRSA(encryptionKey, publicKey);
+			String encryptedOTP = encrypt.encryptAES(input.getOtp(), encryptionKey);
+
+			log.info("encryptionKey :: {}", encryptionKey);
+			log.info("finalKey :: {}", finalKey);
+			log.info("encryptedOTP :: {}", encryptedOTP);
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			// Request
+			EmailOTPRequestDTO request = new EmailOTPRequestDTO();
+
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("EMAIL_OTP");
+			action.setSubType("VERIFY");
+			request.setAction(action);
+
+			// Organization
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			// Persons
+			PersonDTO person = new PersonDTO();
+			ContactDetailsDTO contanct = new ContactDetailsDTO();
+			contanct.setEmail(input.getEmailId());
+			person.setContactDetails(Collections.singletonList(contanct));
+			request.setPersons(Collections.singletonList(person));
+
+			// BCDetails
+			BCDetailsDTO bcDetails = new BCDetailsDTO();
+			bcDetails.setUserId(agentId);
+			request.setBcDetails(bcDetails);
+
+			// Secure
+			SecureDTO secure = new SecureDTO();
+			secure.setEncryptionKey(finalKey);
+			request.setSecure(secure);
+
+			// Validation Methods
+			ValidationMethodsDTO validation = new ValidationMethodsDTO();
+			validation.setValue(encryptedOTP);
+			request.setValidationMethods(Arrays.asList(validation));
+
+			log.info("Verify Email OTP Request :: {}", request.toString());
+			log.info("JSON Request for Verify Email OTP :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<EmailOTPRequestDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+				log.info("Verify Email OTP Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, ResendOtpResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
+
+			// DB Activity --------------------------------------------------------------
+			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
+					input.getApplicationNumber(), input.getExternalAppRefNumber());
+
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
+			}
+
+			if (masterEntity.isPresent()) {
+				master = masterEntity.get();
+				masterId = master.getId();
+				log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
+
+				master.setActionType("EMAIL_OTP");
+				master.setActionSubType("VERIFY");
+				master.setEmail(input.getEmailId());
+				master.setStatus(finalResponse.getStatus());
+			}
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("EMAIL_VERIFY");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(response.getBody());
+			logEntity.setStatusCode(response.getStatusCode().value());
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(finalResponse.getExternalAppRefNumber());
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("EMAIL_VERIFY");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("EMAIL_OTP");
+			history.setActionSubType("VERIFY");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setJioAgentId(agentId);
+			history.setVkid(input.getVkid());
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setNextActionType("AADHAAR");
+				master.setNextActionSubType("EKYC-BIOMETRIC");
+				master.setStage(5);
+
+				// History
+				history.setNextActionType("AADHAAR");
+				history.setNextActionSubType("EKYC-BIOMETRIC");
+				history.setRemarks("Email OTP Verified");
+			} else {
+				history.setRemarks("Email OTP Pending");
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+			// --------------------------------------------------------------
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Verify Email OTP Exception", e);
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+
+	// Re-Send Email OTP
+	@Override
+	@Transactional
+	public ResponseEntity<?> resendEmail(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		log.info("Re-Send Email OTP Request from Customer :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+		String agentId = null;
+		Integer masterId = null;
+		CustomerMasterEntity master = null;
+		ErrorDetails error = new ErrorDetails();
+		ResendOtpResponseDTO finalResponse = new ResendOtpResponseDTO();
+		try {
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			// Request
+			EmailOTPRequestDTO request = new EmailOTPRequestDTO();
+
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+			request.setApp(oranizationName);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("EMAIL_OTP");
+			action.setSubType("RESENDOTP");
+			request.setAction(action);
+
+			// BCDetails
+			BCDetailsDTO bcDetails = new BCDetailsDTO();
+			bcDetails.setUserId(agentId);
+			request.setBcDetails(bcDetails);
+
+			// Persons
+			PersonDTO person = new PersonDTO();
+			ContactDetailsDTO contanct = new ContactDetailsDTO();
+			contanct.setEmail(input.getEmailId());
+			person.setContactDetails(Collections.singletonList(contanct));
+			request.setPersons(Collections.singletonList(person));
+
+			log.info("Resend Email OTP Request :: {}", request.toString());
+			log.info("JSON Request for Resend Email OTP :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<EmailOTPRequestDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+				log.info("Resend Email OTP Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, ResendOtpResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
+
+			// DB Activity --------------------------------------------------------------
+			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
+					input.getApplicationNumber(), input.getExternalAppRefNumber());
+
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
+			}
+
+			if (masterEntity.isPresent()) {
+				master = masterEntity.get();
+				masterId = master.getId();
+				log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
+
+				master.setActionType("EMAIL_OTP");
+				master.setActionSubType("RESENDOTP");
+				master.setEmail(input.getEmailId());
+				master.setStatus(finalResponse.getStatus());
+			}
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("EMAIL_RESENDOTP");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(response.getBody());
+			logEntity.setStatusCode(response.getStatusCode().value());
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(finalResponse.getExternalAppRefNumber());
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("EMAIL_RESENDOTP");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("EMAIL_OTP");
+			history.setActionSubType("RESENDOTP");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setJioAgentId(agentId);
+			history.setVkid(input.getVkid());
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setNextActionType("EMAIL_OTP");
+				master.setNextActionSubType("VERIFY");
+				master.setStage(5);
+
+				// History
+				history.setNextActionType("EMAIL_OTP");
+				history.setNextActionSubType("VERIFY");
+				history.setRemarks("Email OTP Verfied");
+			} else {
+				history.setRemarks("Email OTP Pending");
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+			// --------------------------------------------------------------
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Verify Email OTP Exception", e);
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+
+	// Pan Aadhar Verify
+	@Override
+	@Transactional
+	public ResponseEntity<?> verify(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+		ObjectMapper mapper = new ObjectMapper();
+		String agentId = null;
+		Integer masterId = null;
+		CustomerMasterEntity master = null;
+		ErrorDetails error = new ErrorDetails();
+		CustomerPanAadharVerifyResponseDTO finalResponse = new CustomerPanAadharVerifyResponseDTO();
+
+		log.info("Customer Aadhaar Pan Verify Request from Customer :: {}", input.toString());
+		log.info("JSON Customer Aadhar Pan Verify Request from the Customer :: {}", mapper.writeValueAsString(input));
+
+		String base64String = util.convertPidXmlToBase64Json(input.getBioMetricData());
+
+		try {
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			// Request
+			CustomerPanAadharVerifyRequestDTO request = new CustomerPanAadharVerifyRequestDTO();
+
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("AADHAAR");
+			action.setSubType("EKYC-BIOMETRIC");
+			request.setAction(action);
+
+			// Organization
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			// Financial Details + Persons
+			FinancialDetailsDTO finance = new FinancialDetailsDTO();
+			PersonDTO person = new PersonDTO();
+			finance.setPanNumber(input.getPanNo());
+			person.setFinancialDetails(finance);
+			request.setPersons(Collections.singletonList(person));
+
+			// Authenticate + Aadhar Details
+			AuthenticateEkycDTO authenticate = new AuthenticateEkycDTO();
+			AadhaarDTO aadhar = new AadhaarDTO();
+			aadhar.setType("UID");
+			aadhar.setValue(input.getAadharNo());
+			authenticate.setAadhaar(aadhar);
+			authenticate.setValue(base64String);// check
+			request.setAuthenticateList(Collections.singletonList(authenticate));
+
+			// BCDetails
+			BCDetailsDTO bc = new BCDetailsDTO();
+			bc.setUserId(agentId);
+			request.setBcDetails(bc);
+
+			// consents from the frontend Itself
+			request.setConsents(input.getConsents());
+
+			log.info("Customer Pan Aadhar Verify request :: {}", request.toString());
+			log.info("JSON Request for Customer Pan Aadhar Verify :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<CustomerPanAadharVerifyRequestDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+
+				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+				log.info("Customer Pan Aadhar Verify Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, CustomerPanAadharVerifyResponseDTO.class);
+					log.info("DBT Records :: {}", finalResponse.getData().getPersons().getDbtRecords().toString());
+					
+					  if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus()) && finalResponse.getData() != null
+				                && finalResponse.getData().getPersons() != null
+				                && finalResponse.getData().getPersons().getAadhaar() != null
+				                && finalResponse.getData().getPersons().getAadhaar().getAddress() != null) {
+
+						  Map<String, String> addressLines = util.buildAddressLines(finalResponse);
+						  
+				            AddressDTO address = finalResponse.getData()
+				                    .getPersons()
+				                    .getAadhaar()
+				                    .getAddress();
+
+				            address.setLine1(addressLines.get("line1"));
+				            address.setLine2(addressLines.get("line2"));
+				            address.setLine3(addressLines.get("line3"));
+
+				            log.info("Final Address Line1 :: {}", address.getLine1());
+				            log.info("Final Address Line2 :: {}", address.getLine2());
+				            log.info("Final Address Line3 :: {}", address.getLine3());
+				        }
+					
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage(finalResponse.getError().getMessage());
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
+
+			// DB Activity --------------------------------------------------------------
+			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
+					input.getApplicationNumber(), input.getExternalAppRefNumber());
+
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
+			}
+
+			if (masterEntity.isPresent()) {
+				master = masterEntity.get();
+				masterId = master.getId();
+				log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
+
+				master.setActionType("AADHAAR");
+				master.setActionSubType("EKYC-BIOMETRIC");
+				master.setEmail(input.getEmailId());
+				master.setStatus(finalResponse.getStatus());
+				master.setPanNo(input.getPanNo());
+				master.setAadharNo(input.getAadharNo());
+			}
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("PAN-AADHAAR-VERIFY");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(response.getBody());
+			logEntity.setStatusCode(response.getStatusCode().value());
+//			logEntity.setResponsePayload(responseBody);
+//			logEntity.setStatusCode(statusCode);
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(finalResponse.getExternalAppRefNumber());
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("PAN-AADHAAR-VERIFY");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("AADHAAR");
+			history.setActionSubType("EKYC-BIOMETRIC");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setJioAgentId(agentId);
+			history.setVkid(input.getVkid());
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setNextActionType(finalResponse.getNextAction().getType());
+				master.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				master.setStage(6);
+
+				// History
+				history.setNextActionType(finalResponse.getNextAction().getType());
+				history.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				history.setRemarks("PAN Aadhaar Verfied");
+			} else {
+				history.setRemarks("PAN Aadhaar Verfication Pending");
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+			// --------------------------------------------------------------
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Customer Pan Aadhar Verify Exception", e);
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+
+	//Preview Customer Data
+	@Override
+	public ResponseEntity<?> preview(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+		log.info("Preview Application Request from Customer :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+
+		CustomerCommonRequestDTO finalRequest = new CustomerCommonRequestDTO();
+		PreviewApplicationResponseDTO finalResponse = new PreviewApplicationResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+		try {
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			log.info("Preview Application request :: {}", input.toString());
+
+			finalRequest.setApplicationNumber(input.getApplicationNumber());
+			finalRequest.setInitiatingEntityId(channelId);
+
+			log.info("JSON Request for Preview Application :: {}", mapper.writeValueAsString(finalRequest));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<CustomerCommonRequestDTO> entity = new HttpEntity<>(finalRequest, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+			try {
+				response = rest.exchange(previewURL, HttpMethod.POST, entity, String.class);
+				log.info("Preview Application Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, PreviewApplicationResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Preview Application Exception", e);
+			throw new RuntimeException("Preview Application failed", e);
+		}
+	}
+
+	// Customer E-Auth
+	@Override
+	@Transactional
+	public ResponseEntity<?> customerAuth(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		log.info("Customer E-Auth Request from Customer :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+		ErrorDetails error = new ErrorDetails();
+		String agentId = null;
+		Integer masterId = null;
+		CustomerMasterEntity master = null;
+		CustomerEAuthResponseDTO finalResponse = new CustomerEAuthResponseDTO();
+		String aadharNo = null;
+		log.info("JSON Customer E-Auth Request from Customer :: {}", mapper.writeValueAsString(input));
+		try {
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+			
+			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
+					input.getApplicationNumber(), input.getExternalAppRefNumber());
+			if(masterEntity.isPresent()) {
+				master = masterEntity.get();
+				aadharNo = master.getAadharNo();
+				log.info("Aadhar No for the user :: {}", aadharNo);
+			}			
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			String base64String = util.convertPidXmlToBase64Json(input.getBioMetricData());
+			log.info("base64String :: {}", base64String);
+
+			// Request
+			CustomerEAuthRequestDTO request = new CustomerEAuthRequestDTO();
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType("CustomerOnboarding");
+			request.setApplicationSubType("SAVINGS");
+			request.setInitiatingEntityId(channelId);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("AADHAAR");
+			action.setSubType("EAUTH-BIOMETRIC");
+			request.setAction(action);
+
+			// Organization
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			AuthenticateEkycDTO authenticate = new AuthenticateEkycDTO();
+			AadhaarDTO aadhar = new AadhaarDTO();
+			aadhar.setType("UID");
+//			aadhar.setValue(input.getAadharNo());
+			aadhar.setValue(aadharNo);//------ fetching from DB
+			authenticate.setAadhaar(aadhar);
+			authenticate.setValue(base64String);// check
+			request.setAuthenticateList(Collections.singletonList(authenticate));
+
+			// BCDetails
+			BCDetailsDTO bc = new BCDetailsDTO();
+			bc.setUserId(agentId);
+			request.setBcDetails(bc);
+
+			// Consents
+			Optional.ofNullable(input.getConsents()).ifPresent(con -> {
+				request.setConsents(con);
+			});
+
+			log.info("JSON Request for Customer E-Auth :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<CustomerEAuthRequestDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+
+				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+				log.info("Customer E-Auth Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, CustomerEAuthResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
+
+			// DB Activity --------------------------------------------------------------
+
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
+			}
+
+			if (masterEntity.isPresent()) {
+				master = masterEntity.get();
+				masterId = master.getId();
+				log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
+
+				master.setStatus(finalResponse.getStatus());
+				master.setActionType("AADHAAR");
+				master.setActionSubType("EAUTH-BIOMETRIC");
+			}
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("CUSTOMER E-AUTH");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(response.getBody());
+			logEntity.setStatusCode(response.getStatusCode().value());
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(finalResponse.getExternalAppRefNumber());
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("CUSTOMER E-AUTH");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("AADHAAR");
+			history.setActionSubType("EAUTH-BIOMETRIC");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setJioAgentId(agentId);
+			history.setVkid(input.getVkid());
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setNextActionType("APPLICATION");
+				master.setNextActionSubType("SUBMIT");
+				master.setStage(7);
+
+				// History
+				history.setNextActionType("APPLICATION");
+				history.setNextActionSubType("SUBMIT");
+				history.setRemarks("Customer E-Auth Done & Verfied");
+			} else {
+				history.setRemarks("Customer E-Auth Pending");
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+			// --------------------------------------------------------------
+
+			return ResponseEntity.ok(finalResponse);
+		} catch (Exception e) {
+			log.error("Customer E-Auth Exception", e);
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+	
+	// Customer Application Status
+	@Override
+	public ResponseEntity<?> applicationStatus(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+		log.info("Application Status Request from Customer :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+
+		CustomerCommonRequestDTO finalRequest = new CustomerCommonRequestDTO();
+		ApplicationStatusResponseDTO finalResponse = new ApplicationStatusResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+		try {
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			finalRequest.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			finalRequest.setInitiatingEntityId(channelId);
+
+			log.info("JSON Request for Application Status :: {}", mapper.writeValueAsString(finalRequest));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<CustomerCommonRequestDTO> entity = new HttpEntity<>(finalRequest, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+				response = rest.exchange(applicationStatusURL, HttpMethod.POST, entity, String.class);
+				log.info("Application Status Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, ApplicationStatusResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Application Status Exception", e);
+			throw new RuntimeException("Application Status failed", e);
+		}
+	}
+
+	//Final Submit Application
+	@Transactional
+	@Override
+	public ResponseEntity<?> submitApp(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		log.info("Submit Application Request from Customer :: {}", input.toString());
+		ObjectMapper mapper = new ObjectMapper();
+		log.info("JSON Reqest from Customer Submit Application :: {}", mapper.writeValueAsString(input));
+
+		String agentId = null;
+		Integer masterId = null;
+		CustomerMasterEntity master = null;
+		ErrorDetails error = new ErrorDetails();
+		SubmitApplicationResponseDTO finalResponse = new SubmitApplicationResponseDTO();
+		
+		String cardType = input.getAddOn().getCardType();
+		//String subSubServiceID = (cardType != null && "VIRTUAL".equalsIgnoreCase(cardType)) ? "1485" : "1486";
+		String subSubServiceID = (cardType != null && "VIRTUAL".equalsIgnoreCase(cardType)) ? virtualSubSubServiceID : physicalSubSubServiceID;
+		Double money = (cardType != null && "VIRTUAL".equalsIgnoreCase(cardType)) ? 100.00 : 400.00;
+		
+		try {
+			
+			// Money debit----------
+			DebitTransactionEntity debit = debitRepo.debitTransaction
+					(input.getExternalAppRefNumber(), //unique transaction ID
+					"Payment For JPB", //Remarks
+					serviceID,
+					subServiceID,
+					subSubServiceID, //Sub Sub Service ID 1485-100, 1486-400 
+					subSubSubServiceID,
+					input.getVkid(),
+					walletID,
+					money, //Amount
+					input.getVkid(), //BCID
+					input.getExternalAppRefNumber(), //RRN No
+					transactionAuthenticationType,
+					transactionType
+					);
+					
+			log.info("Debit Transaction Details :: {}", debit.toString());
+			if("N".equalsIgnoreCase(debit.getUpdateStatus())) {
+					log.info("Payment Successful---->");
+			} else {
+					log.info("Payment Pending---->");
+			}
+			log.info("SubSubServiceID for Money Debit :: {}, Total Sum to be deduceted from Wallet :: {}", subSubServiceID, money);
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			// Request
+			SubmitApplicationRequstDTO request = new SubmitApplicationRequstDTO();
+			// Static Value
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("APPLICATION");
+			action.setSubType("SUBMIT");
+			request.setAction(action);
+			
+			// Consents
+			   Optional.ofNullable(input.getConsents()).ifPresent(con -> {
+			    request.setConsents(con);
+			   });
+
+			// Organization
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			// BCDetails
+			BCDetailsDTO bc = new BCDetailsDTO();
+			//bc.setUserId(agentID); // have to change
+			bc.setUserId(agentId);
+			request.setBcDetails(bc);
+
+			// Persons + Finance
+			PersonDTO person = new PersonDTO();
+
+			//Person Address(Permanent + Communication)
+			Optional.ofNullable(input.getPersonAddress()).ifPresent(add -> {
+				person.setAddress(add);
+			});
+			
+			Optional.ofNullable(input.getFamilyDetails()).ifPresent(family -> {
+				person.setFamilyMembers(family);
+			});
+			
+			// Marital Status
+			Optional.ofNullable(input.getMartialStatus()).ifPresent(ms -> {
+				PersonalDetailsDTO personDetail = new PersonalDetailsDTO();
+				personDetail.setMaritalStatus(ms);
+				person.setPersonalDetails(personDetail);
+			});
+
+			// Finance
+			Optional.ofNullable(input.getFinancialDetails()).ifPresent(fd -> {
+				FinancialDetailsDTO finance = new FinancialDetailsDTO();
+				finance.setAnnualSalary(fd.getAnnualSalary());
+				finance.setSourceOfIncome(fd.getSourceOfIncome());
+				finance.setOccupation(fd.getOccupation());
+				person.setFinancialDetails(finance);
+			});
+			request.setPersons(Collections.singletonList(person));
+
+			// Products + Accounts + Contact
+			ProductDTO product = new ProductDTO();
+			product.setProductType(applicationSubType); // savings
+
+			AccountsDTO accounts = new AccountsDTO();
+			NomineeDTO nominee = new NomineeDTO();
+			// Nominee Details
+			Optional.ofNullable(input.getNomineeDetails()).ifPresent(nom -> {
+				nominee.setRelationship(nom.getRelationship());
+				nominee.setFirstName(nom.getFirstName());
+				nominee.setMiddleName(nom.getMiddleName());
+				nominee.setLastName(nom.getLastName());
+				nominee.setGender(nom.getGender());
+				nominee.setSalutation(nom.getSalutation());
+				nominee.setDateOfBirth(nom.getDateOfBirth());
+				nominee.setPercentage(nom.getPercentage());
+				nominee.setPriority(nom.getPriority());
+				nominee.setMinor(nom.isMinor());
+			});
+
+			// Nominee Contact Details
+			Optional.ofNullable(input.getNomineeContactDetails()).ifPresent(nomCon -> {
+				nominee.setContactDetails(nomCon);
+			});
+
+			// Nominee Address
+			Optional.ofNullable(input.getNomineeAddress()).ifPresent(nomAdd -> {
+				nominee.setAddress(Collections.singletonList(nomAdd));
+			});
+
+			// Nominee OVD Details
+			Optional.ofNullable(input.getNomineeOVDDetails()).ifPresent(nomOVD -> {
+				nominee.setOvdDetails(Collections.singletonList(nomOVD));
+			});
+
+			// Guardian Details inside nominee
+			GuardianDTO guard = new GuardianDTO();
+			Optional.ofNullable(input.getGuardianDetails()).ifPresent(grdDet -> {
+				guard.setFirstName(grdDet.getFirstName());
+				guard.setMiddleName(grdDet.getMiddleName());
+				guard.setLastName(grdDet.getLastName());
+				guard.setDateOfBirth(grdDet.getDateOfBirth());
+				guard.setRelationship(grdDet.getRelationship());
+			});
+
+			// Guardian Contact Details
+			Optional.ofNullable(input.getGuardianContactDetails()).ifPresent(grdCon -> {
+				guard.setContactDetails(grdCon);
+			});
+
+			// Guardian OVD Details
+			Optional.ofNullable(input.getGuardianOVDDetails()).ifPresent(grdOVD -> {
+				guard.setOvdDetails(Collections.singletonList(grdOVD));
+			});
+
+			// Guardian Address
+			Optional.ofNullable(input.getGuardianAddress()).ifPresent(grdAdd -> {
+				guard.setAddress(Collections.singletonList(grdAdd));
+			});
+
+			// Add-On
+			Optional.ofNullable(input.getAddOn()).ifPresent(addOn -> {
+				AddOnDTO addONDTO = new AddOnDTO();
+				addONDTO.setDebitCardDetails(Collections.singletonList(addOn));
+				product.setAddOn(Collections.singletonList(addONDTO));
+			});
+
+			// Set guardian only if data is available
+			if (guard.getFirstName() != null
+			        || guard.getMiddleName() != null
+			        || guard.getLastName() != null
+			        || guard.getDateOfBirth() != null
+			        || guard.getRelationship() != null
+			        || guard.getContactDetails() != null
+			        || guard.getOvdDetails() != null
+			        || guard.getAddress() != null) {
+
+			    nominee.setGuardian(Collections.singletonList(guard));
+			}else {
+			    nominee.setGuardian(Collections.emptyList());
+			}
+			
+			if (nominee.getRelationship() != null
+			        || nominee.getFirstName() != null
+			        || guard.getLastName() != null
+			        ) {
+				accounts.setNominee(Collections.singletonList(nominee));
+			}
+			
+			product.setAccounts(Collections.singletonList(accounts));
+			request.setProducts(Collections.singletonList(product));
+
+			log.info("Submit Application request :: {}", request.toString());
+			log.info("JSON Request for Submit Application :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<SubmitApplicationRequstDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+			try {
+				
+				if("Y".equalsIgnoreCase(debit.getUpdateStatus())){
+					response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+					log.info("Submit Application Raw Response :: {}", response.getBody());
+					responseBody = response.getBody();
+					statusCode = response.getStatusCode().value();
+					
+				} else {
+					error.setCode("200");
+					error.setMessage("Payment Not Successfull");
+					finalResponse.setStatus("FAILED");
+					finalResponse.setError(error);
+				}
+					
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, SubmitApplicationResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else if(!"Y".equalsIgnoreCase(debit.getUpdateStatus())){ 
+				error.setCode("200");
+				error.setMessage("Payment Not Successfull");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			} else {
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg" : finalResponse.getError().getMessage();
+
+			// DB Activity --------------------------------------------------------------			
+			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
+					input.getApplicationNumber(), input.getExternalAppRefNumber());
+
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
+			}
+
+			if (masterEntity.isPresent()) {
+				master = masterEntity.get();
+				masterId = master.getId();
+				log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
+
+				master.setActionType("APPLICATION");
+				master.setActionSubType("SUBMIT");
+				master.setEmail(input.getEmailId());
+				master.setStatus(finalResponse.getStatus());
+				
+				//Transaction
+				master.setCardOpted(cardType);
+				master.setTransactionId(input.getExternalAppRefNumber());
+				master.setTransactionStatus(debit.getUpdateStatus());
+				master.setTransactionTime(LocalDateTime.now());
+			}
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("SUBMIT_APP");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(mapper.writeValueAsString(finalResponse));
+			logEntity.setStatusCode("Y".equalsIgnoreCase(debit.getUpdateStatus()) ? response.getStatusCode().value() : 200);
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(input.getExternalAppRefNumber());
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("SUMBIT_APP");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("APPLICATION");
+			history.setActionSubType("SUBMIT");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setJioAgentId(agentId);
+			history.setVkid(input.getVkid());
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setNextActionType("SUBMITTED");
+				master.setNextActionSubType("EXIT");
+				master.setStage(8);
+
+				// History
+				history.setNextActionType("SUBMITTED");
+				history.setNextActionSubType("EXIT");
+				history.setRemarks("Application Submitted");
+			} else {
+				history.setRemarks("Application Submit Pending");
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+			// --------------------------------------------------------------
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+			log.error("Submit Application Exception", e);
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+}
