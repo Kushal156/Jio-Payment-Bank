@@ -1555,7 +1555,11 @@ public class CustomerServiceImpl implements CustomerService {
 			if (statusCode != null && statusCode == 200 && responseBody != null) {
 				try {
 					finalResponse = mapper.readValue(responseBody, CustomerPanAadharVerifyResponseDTO.class);
-					log.info("DBT Records :: {}", finalResponse.getData().getPersons().getDbtRecords().toString());
+					
+					Optional.ofNullable(finalResponse.getData().getPersons().getDbtRecords())
+					.ifPresentOrElse(DBT -> log.info("DBT Records :: {}", DBT), 
+							() -> log.info("DBT Records :: No Record Found")
+					);
 					
 					  if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus()) && finalResponse.getData() != null
 				                && finalResponse.getData().getPersons() != null
