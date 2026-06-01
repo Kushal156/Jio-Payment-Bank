@@ -59,13 +59,11 @@ import com.jpb.Entity.CustomerApiLogEntity;
 import com.jpb.Entity.CustomerHistoryEntity;
 import com.jpb.Entity.CustomerMasterEntity;
 import com.jpb.Entity.DebitTransactionEntity;
-import com.jpb.Entity.WalletMasterEntity;
 import com.jpb.Repository.AgentMasterRepository;
 import com.jpb.Repository.CustomerApiLogRepository;
 import com.jpb.Repository.CustomerHistoryRepository;
 import com.jpb.Repository.CustomerMasterRepository;
 import com.jpb.Repository.DebitTransactionRepository;
-import com.jpb.Repository.WalletMasterRepository;
 import com.jpb.Service.CustomerService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -174,9 +172,6 @@ public class CustomerServiceImpl implements CustomerService {
 
 	@Autowired
 	DebitTransactionRepository debitRepo;
-	
-	@Autowired
-	WalletMasterRepository walletRepo;
 
 	// Generate OTP
 	@Override
@@ -2069,56 +2064,37 @@ public class CustomerServiceImpl implements CustomerService {
 		CustomerMasterEntity master = null;
 		ErrorDetails error = new ErrorDetails();
 		SubmitApplicationResponseDTO finalResponse = new SubmitApplicationResponseDTO();
-		boolean paymentStatus = false; // Checking Payment Status
-		String transactionStatus = null; // DB Entry Y-Success N-Failure
 		
 		String cardType = input.getAddOn().getCardType();
+		//String subSubServiceID = (cardType != null && "VIRTUAL".equalsIgnoreCase(cardType)) ? "1485" : "1486";
 		String subSubServiceID = (cardType != null && "VIRTUAL".equalsIgnoreCase(cardType)) ? virtualSubSubServiceID : physicalSubSubServiceID;
 		Double money = (cardType != null && "VIRTUAL".equalsIgnoreCase(cardType)) ? 100.00 : 400.00;
 		
 		try {
 			
-			// Money Debit Check---
-			List<WalletMasterEntity> records = walletRepo.findBySubServiceIdAndDcAndTransactionReferenceId
-					(subServiceID, "D", input.getExternalAppRefNumber());
-			
-			if(!records.isEmpty() && records != null) {
-				  log.info("Money already Debited for External Ref No :: {}. Skipping debit transaction.",
-				            input.getExternalAppRefNumber());
-
-				    paymentStatus = true;
-				    transactionStatus = "Y";
+			// Money debit----------
+			DebitTransactionEntity debit = debitRepo.debitTransaction
+					(input.getExternalAppRefNumber(), //unique transaction ID
+					"Payment For JPB", //Remarks
+					serviceID,
+					subServiceID,
+					subSubServiceID, //Sub Sub Service ID 1485-100, 1486-400 
+					subSubSubServiceID,
+					input.getVkid(),
+					walletID,
+					money, //Amount
+					input.getVkid(), //BCID
+					input.getExternalAppRefNumber(), //RRN No
+					transactionAuthenticationType,
+					transactionType
+					);
+					
+			log.info("Debit Transaction Details :: {}", debit.toString());
+			if("Y".equalsIgnoreCase(debit.getUpdateStatus())) {
+					log.info("Payment Successful---->");
 			} else {
-				log.info("No debit record found. Initiating debit transaction for Ref No :: {}", input.getExternalAppRefNumber());
-				
-				// Money Debit----------
-				DebitTransactionEntity debit = debitRepo.debitTransaction
-						(input.getExternalAppRefNumber(), //unique transaction ID
-						"Payment For JPB", //Remarks
-						serviceID,
-						subServiceID,
-						subSubServiceID, //Sub Sub Service ID 1485-100, 1486-400 
-						subSubSubServiceID,
-						input.getVkid(),
-						walletID,
-						money, //Amount
-						input.getVkid(), //BCID
-						input.getExternalAppRefNumber(), //RRN No
-						transactionAuthenticationType,
-						transactionType
-						);
-						
-				log.info("Debit Transaction Details :: {}", debit.toString());
-				paymentStatus = "Y".equalsIgnoreCase(debit.getUpdateStatus()) ? true : false; 
-				transactionStatus = paymentStatus ? "Y" : "N";
-				
-				if(paymentStatus) {
-						log.info("Payment Successful---->");
-				} else {
-						log.info("Payment Pending---->");
-				}
+					log.info("Payment Pending---->");
 			}
-			
 			log.info("SubSubServiceID for Money Debit :: {}, Total Sum to be deduceted from Wallet :: {}", subSubServiceID, money);
 
 			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
@@ -2300,7 +2276,7 @@ public class CustomerServiceImpl implements CustomerService {
 			Integer statusCode = null;
 			try {
 				
-				if(paymentStatus){
+				if("Y".equalsIgnoreCase(debit.getUpdateStatus())){
 					response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
 					log.info("Submit Application Raw Response :: {}", response.getBody());
 					responseBody = response.getBody();
@@ -2338,7 +2314,7 @@ public class CustomerServiceImpl implements CustomerService {
 					finalResponse.setError(error);
 					finalResponse.setStatus("FAILED");
 				}
-			} else if(paymentStatus == false){ 
+			} else if(!"Y".equalsIgnoreCase(debit.getUpdateStatus())){ 
 				error.setCode("200");
 				error.setMessage("Payment Not Successfull");
 				finalResponse.setStatus("FAILED");
@@ -2374,7 +2350,7 @@ public class CustomerServiceImpl implements CustomerService {
 				//Transaction
 				master.setCardOpted(cardType);
 				master.setTransactionId(input.getExternalAppRefNumber());
-				master.setTransactionStatus(transactionStatus);
+				master.setTransactionStatus(debit.getUpdateStatus());
 				master.setTransactionTime(LocalDateTime.now());
 			}
 
@@ -2384,7 +2360,7 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setApiName("SUBMIT_APP");
 			logEntity.setRequestPayload(mapper.writeValueAsString(request));
 			logEntity.setResponsePayload(mapper.writeValueAsString(finalResponse));
-			logEntity.setStatusCode("Y".equalsIgnoreCase(transactionStatus) ? response.getStatusCode().value() : 200);
+			logEntity.setStatusCode("Y".equalsIgnoreCase(debit.getUpdateStatus()) ? response.getStatusCode().value() : 200);
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
