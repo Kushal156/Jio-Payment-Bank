@@ -294,7 +294,7 @@ public class SchedulerServiceImpl {
 			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
 					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
 			
-			log.info("headers>>>>>"+ headers);
+			log.info("headers :: {}", headers);
 
 			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
 

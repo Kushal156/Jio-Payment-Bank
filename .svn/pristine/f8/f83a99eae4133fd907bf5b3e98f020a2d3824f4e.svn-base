@@ -1,42 +1,41 @@
 spring.application.name=Jio-Payement-Bank
-server.port=8090
+server.port=9090
 
 # DB connection
-spring.datasource.url=jdbc:sqlserver://192.168.121.15:1433;databaseName=VKMSSIT;trustServerCertificate=true
-spring.datasource.username=KushalSardarSit
-spring.datasource.password=KushalSardarSit@334401@
+spring.datasource.url=jdbc:sqlserver://192.168.121.10:1433;databaseName=FVKMIS;trustServerCertificate=true
+spring.datasource.username=FVKMIS
+spring.datasource.password=Fvkmis@4321
 spring.datasource.driverClassName=com.microsoft.sqlserver.jdbc.SQLServerDriver
 spring.jpa.show-sql=false
 
 #Agent URL's
-tokenURL=https://sit-apig.test.jiobank.in/jpb/v1/app/authenticate
-saveAgentURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/app-mgmt/partner/api/onboarding
-agentInfoURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/v1/app/agent/getAgentUserInformation/
+tokenURL=https://apig.jiopaymentsbank.com/jpb/v1/app/authenticate
+saveAgentURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/app-mgmt/partner/api/onboarding
+agentInfoURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/v1/app/agent/getAgentUserInformation/
 
 
 #Customer URL's
-generateOtpURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/app-mgmt/jpb/process-request
-applicationStatusURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/app-mgmt/jpb/application/status
-previewURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/app-mgmt/jpb/application/details
+generateOtpURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/app-mgmt/jpb/process-request
+applicationStatusURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/app-mgmt/jpb/application/status
+previewURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/app-mgmt/jpb/application/details
 			   
 #Scheduler URL's
-subscribtionsURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/v1/crm/getCommonCodeByKey/SA_SUBSCRIPTIONS
-getConsentsURL=https://sit-apig.test.jiobank.in:9402/jpb/exp/v1/consent/consents
-getPinDetails=https://sit-apig.test.jiobank.in/jpb/v1/app/crm/getPincode/
+subscribtionsURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/v1/crm/getCommonCodeByKey/SA_SUBSCRIPTIONS
+getConsentsURL=https://apig.jiopaymentsbank.com:9402/jpb/exp/v1/consent/consents
+getPinDetails=https://apig.jiopaymentsbank.com/jpb/v1/app/crm/getPincode/
 SMSURL=https://vkmssit.vakrangee.in/email-sms-gateway/sms-service-airtel
 
 #Other URL
 #Pan Verify URL
-panURL=https://sandbox.surepass.app/api/v1/pan/pan-comprehensive
-panToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc4MDMwNTUxMywianRpIjoiODhmYjA2NDctNmM4Ni00NjVjLWE2Y2ItYzFmNDQyN2QwODZkIiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2LnZha3JhbmdlZTFAc3VyZXBhc3MuaW8iLCJuYmYiOjE3ODAzMDU1MTMsImV4cCI6MTc4Mjg5NzUxMywiZW1haWwiOiJ2YWtyYW5nZWUxQHN1cmVwYXNzLmlvIiwidGVuYW50X2lkIjoibWFpbiIsInVzZXJfY2xhaW1zIjp7InNjb3BlcyI6WyJ1c2VyIl19fQ.-4R4hoRE3shdFVbTF3njMeVpGCqAIZYyjyEv2bWIlZY
+panURL=https://kyc-api.surepass.app/api/v1/pan/pan-comprehensive
+panToken=ABCD
 
 #SMS Api Key
 apiKey=c4f67d09ff264a1ac9b0bdf61676d255c6b273d5b9634e5c951a3718e90bc86d
 
 #Pre-Check Image Upload Directory
-precheck.jpb.url=D:/bankingjio/uploadedimages
-jio.onbording.url = http://vkmssit.vakrangee.in:8090/uploadedimages/
-
+precheck.jpb.url=E:/Upload/jpb/files
+jio.onbording.url=https://api.vakrangee.in/jpb/uploadedimages/
 
 #Bio metric data
 SA=SKJIOPAYB1
@@ -45,11 +44,11 @@ appCode=BCAPP
 #Imp Inputs
 purpose=2
 channelID=7245
-clientID=2e39b923eb6ce56173f35f777071e5a2
+clientID=6e90fbd26678faa40e07fa9d24cdd431
 authenticateMode=20
-AppName=Jio Payment Bank
-SecretCode=f31c49a52b8374709c94a46443b199d200c964b30d10e1b191ae6d867ef718d2
-PublicKeyPath=D:/Vakrangee.it/API Documentation/Jio Payment Bank/publicKey 1.pem
+AppName=JPB Third Party BC-Vakrangee
+SecretCode=2892ad2a5157de4a960dc3b607ccb2b6ef2669968ee0bb47f61872eb1de2b2c2
+PublicKeyPath=E:/Deployment/Jio/publicKey 1.pem
 
 
 PublicKey=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkGJZ9gZuStr8ZJyDOsZvFN90nqKa+j7GJ4c/eSEY+F4JnQ0A+lzZ75+5xpF1Tey0jCnAbhK6/KJ/xZjwXMMBfOfCCjicmpn5hrkYwEwaM6pCteJc4YigbcQn6PD1Yk5d1hIKDG+2X5P47gGYg8ppJ78svgaOt3hth454Nkhq9EE7rslh8blYiK75ntOX/ikDyYCqM/+7K4jVGVukDcMEPgGCb1Q3nMgXfCfE0e0dSCmY4s/1DkyUxa5AKgRn+u4atM3Zw0lUaG+/W/SF6fTuE6d7lFg+V0GiNNVvqmRQ7t3r8Q8FN1EhLEMai6kUL+3EH6NcqZnwqKtuptJVKkO0bQIDAQAB
@@ -70,7 +69,7 @@ spring.servlet.multipart.max-request-size=10GB
 server.tomcat.max-swallow-size=-1
 server.tomcat.connection-timeout=600000
 
-#Payment Points SIT
+#Payment Points PROD
 serviceID=1
 SubServiceID=1335
 virtual.SubSubServiceID=1485
@@ -87,3 +86,12 @@ logging.file.name=logs/app.log
 logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger - %msg%n
 logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n
 logging.level.com.microsoft.sqlserver.jdbc.internals.TDS.Channel=ERROR
+
+# ========================= 
+# HIKARI CONNECTION POOL 
+# ========================= 
+spring.datasource.hikari.minimum-idle=5 
+spring.datasource.hikari.maximum-pool-size=20 
+spring.datasource.hikari.idle-timeout=300000 
+spring.datasource.hikari.connection-timeout=30000 
+spring.datasource.hikari.max-lifetime=1800000

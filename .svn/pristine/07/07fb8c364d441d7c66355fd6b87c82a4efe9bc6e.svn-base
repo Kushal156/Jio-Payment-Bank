@@ -1,0 +1,179 @@
+package com.jpb.ServiceImpl;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
+
+import com.jpb.DTO.ErrorDetails;
+import com.jpb.DTO.OtherCommonRequest;
+import com.jpb.DTO.OtherCommonResponseDTO;
+import com.jpb.Entity.NSDLPanVerificationEntity;
+import com.jpb.Repository.NSDLPanVerificationRepository;
+import com.jpb.Service.OtherService;
+
+import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+@Service
+@Slf4j
+public class OtherServiceImpl implements OtherService {
+
+	@Value("${panURL}")
+	private String panURL;
+
+	@Value("${panToken}")
+	private String token;
+
+	@Autowired
+	RestTemplate rest;
+	
+	@Autowired
+	NSDLPanVerificationRepository panRepo;
+
+	@Override
+	public ResponseEntity<?> panVerify(Map<String, Object> input) {
+
+		String pan = (String) input.get("pan");
+
+		ErrorDetails error = new ErrorDetails();
+		ObjectMapper mapper = new ObjectMapper();
+		OtherCommonResponseDTO finalResponse = new OtherCommonResponseDTO();
+
+		// Request
+		OtherCommonRequest request = new OtherCommonRequest();
+		request.setId_number(pan);
+
+		try {
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.setBearerAuth(token);
+
+			log.info("JSON Request for Pan Card Verification :: {}", mapper.writeValueAsString(request));
+			
+			HttpEntity<OtherCommonRequest> entity = new HttpEntity<>(request, headers);
+			ResponseEntity<String> response = rest.exchange(panURL, HttpMethod.POST, entity,String.class);
+
+			log.info("PAN Verify Raw Response :: {}", response.getBody());
+
+			if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+
+			    JsonNode root = mapper.readTree(response.getBody());
+			    JsonNode data = root.path("data");
+			    finalResponse.setPan(data.path("pan_number").asText());
+			    finalResponse.setStatus("00");
+			    finalResponse.setStatusDesc("PAN Verification is done Successful.");
+
+			    // Name Split
+			    JsonNode fullNameSplit = data.path("full_name_split");
+
+			    finalResponse.setFirstName(fullNameSplit.size() > 0 ? fullNameSplit.get(0).asText() : "");
+			    finalResponse.setMiddleName(fullNameSplit.size() > 1 ? fullNameSplit.get(1).asText() : "");
+			    finalResponse.setLastName(fullNameSplit.size() > 2 ? fullNameSplit.get(2).asText() : "");
+			    finalResponse.setNameAsPerPANCARD(data.path("full_name").asText());
+
+			    // Aadhaar Linking
+			    finalResponse.setAadharSeedingStatus(data.path("aadhaar_linked").asBoolean() ? "Y" : "N");
+
+			    // DOB conversion
+			    String dob = data.path("dob").asText();
+
+			    if (dob != null && !dob.isBlank()) {
+			        LocalDate localDate = LocalDate.parse(dob);
+			        String formattedDob = localDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+			        finalResponse.setDateOfBirth(formattedDob);
+			    }
+			    
+			    // Save into DB
+			    try {
+
+			        NSDLPanVerificationEntity existingRecord = panRepo.findByPanNumber(finalResponse.getPan());
+
+			        log.info("Existing PAN Record :: {}", existingRecord);
+
+			        if (existingRecord == null) {
+
+			        	NSDLPanVerificationEntity db = new NSDLPanVerificationEntity();
+
+			        	db.setPanNumber(finalResponse.getPan());
+			        	db.setPanStatus("E");
+
+			        	db.setFirstName(finalResponse.getFirstName());
+			        	db.setMiddleName(finalResponse.getMiddleName());
+			        	db.setLastName(finalResponse.getLastName());
+			        	db.setNameAsPerPancard(finalResponse.getNameAsPerPANCARD());
+			        	db.setFatherName("");
+			        	db.setAadhaarSeedingStatus(finalResponse.getAadharSeedingStatus());
+			        	db.setDateTime(LocalDateTime.now());
+			        	NSDLPanVerificationEntity saved = panRepo.save(db);
+
+			            log.info("PAN Verification Record Saved :: {}", saved.getPanId());
+
+			        } else {
+
+			            log.info("PAN already exists in DB :: {}", existingRecord.getPanNumber());
+			        }
+
+			    } catch (Exception dbEx) {
+			        log.error("Error while saving PAN verification record", dbEx);
+			    }
+
+			    return ResponseEntity.ok(finalResponse);
+			}
+
+			error.setCode(String.valueOf(response.getStatusCode().value()));
+			error.setMessage("PAN verification failed");
+
+			return ResponseEntity.status(response.getStatusCode()).body(error);
+
+		} catch (HttpStatusCodeException ex) {
+
+			 	log.error("Status Code :: {}", ex.getStatusCode());
+			    log.error("Response Body :: {}", ex.getResponseBodyAsString());
+			    log.error("Response Headers :: {}", ex.getResponseHeaders(), ex);
+
+			try {
+
+				JsonNode errorResponse = mapper.readTree(ex.getResponseBodyAsString());
+				error.setMessage(errorResponse.has("message") ? errorResponse.get("message").asText()
+						: ex.getResponseBodyAsString());
+
+			} catch (Exception e) {
+				error.setMessage(ex.getResponseBodyAsString());
+			}
+
+			return ResponseEntity.status(ex.getStatusCode()).body(error);
+
+		} catch (ResourceAccessException ex) {
+
+			log.error("PAN Verify API Timeout", ex);
+			error.setCode("408");
+			error.setMessage("PAN verification service unavailable or timed out");
+
+			return ResponseEntity.status(HttpStatus.OK).body(error);
+
+		} catch (Exception ex) {
+
+			log.error("PAN Verify Exception", ex);
+			error.setCode("500");
+			error.setMessage(ex.getMessage() != null ? ex.getMessage() : "Unexpected error occurred");
+			return ResponseEntity.status(HttpStatus.OK).body(error);
+		}
+	}
+
+}
