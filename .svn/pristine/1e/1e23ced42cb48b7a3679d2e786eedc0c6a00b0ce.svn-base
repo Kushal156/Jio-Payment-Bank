@@ -37,7 +37,6 @@ import com.jpb.DTO.CustomerPanAadharVerifyResponseDTO;
 import com.jpb.DTO.GenerateOTPRequestDTO;
 import com.jpb.DTO.GenerateOtpResponseDTO;
 import com.jpb.DTO.GuardianDTO;
-import com.jpb.DTO.NextActionDTO;
 import com.jpb.DTO.NomineeDTO;
 import com.jpb.DTO.OrganizationDTO;
 import com.jpb.DTO.PersonDTO;
@@ -191,9 +190,7 @@ public class CustomerServiceImpl implements CustomerService {
 		String responseJson = null;
 		String agentId = null;
 		String externalRefNo = null; //"JPBV" + System.currentTimeMillis()
-		String applicationNo = null;
 		Integer masterId = null;
-		boolean resumedJourney = false;
 		GenerateOtpResponseDTO finalResponse = new GenerateOtpResponseDTO();
 		ErrorDetails error = new ErrorDetails();
 		try {			
@@ -216,10 +213,7 @@ public class CustomerServiceImpl implements CustomerService {
 						.max(Comparator.comparing(CustomerMasterEntity::getCreatedDateTime));
 						
 				if(latestRecord.isPresent()) {
-					
-					resumedJourney = true;
 					CustomerMasterEntity customerDetails = latestRecord.get();
-					applicationNo = customerDetails.getApplicationNumber();
 					externalRefNo = customerDetails.getExternalAppRefNumber();
 					masterId = customerDetails.getId();
 					master = customerDetails;
@@ -227,30 +221,6 @@ public class CustomerServiceImpl implements CustomerService {
 					log.info("Resuming Previous Journery ------->");
 					log.info("Found existing active application. ApplicationNo :: {}, ExternalRefNo :: {}",
 							customerDetails.getApplicationNumber(),	externalRefNo);
-										    
-					    input.setExternalAppRefNumber(externalRefNo);
-					    input.setApplicationNumber(applicationNo);
-					    ResponseEntity<?> resendOTPResponse = resendOtp(input, httpRequest);
-				
-					    if(resendOTPResponse.getBody() instanceof ResendOtpResponseDTO resendDTO) {
-					    	
-					    	finalResponse.setApplicationNumber(resendDTO.getApplicationNumber());
-					    	finalResponse.setExternalAppRefNumber(externalRefNo);
-					    	finalResponse.setStatus(resendDTO.getStatus());
-					    	
-					    	if ("SUCCESS".equalsIgnoreCase(resendDTO.getStatus())) {
-
-					            NextActionDTO next = new NextActionDTO();
-					            next.setType("MOBILE_OTP");
-					            next.setSubType("VERIFY");
-					            finalResponse.setNextAction(next);
-					        } else {
-					            finalResponse.setError(resendDTO.getError());
-					        }
-					    }
-					    
-					    log.info("final Response to FrontEnd for Generate/Resend OTP :: {}", mapper.writeValueAsString(finalResponse));
-					    return ResponseEntity.ok(finalResponse);
 					
 				} else {
 					externalRefNo = "JPBV" + System.currentTimeMillis();
@@ -365,7 +335,6 @@ public class CustomerServiceImpl implements CustomerService {
 				statusCode = response.getStatusCode().value();
 
 			} catch (HttpStatusCodeException ex) {
-				
 				statusCode = ex.getStatusCode().value();
 				responseBody = ex.getResponseBodyAsString();
 				log.error("API error: {}, body: {}", statusCode, responseBody);
@@ -376,7 +345,7 @@ public class CustomerServiceImpl implements CustomerService {
 				    error.setCode("500");
 				    error.setMessage("No response received from API");
 				}
-			
+				
 				finalResponse.setError(error);
 
 			} catch (ResourceAccessException ex) {
@@ -394,9 +363,7 @@ public class CustomerServiceImpl implements CustomerService {
 
 			if (statusCode != null && statusCode == 200 && responseBody != null) {
 				try {
-					
 					finalResponse = mapper.readValue(responseBody, GenerateOtpResponseDTO.class);
-					
 				} catch (Exception e) {
 					error.setCode("500");
 					error.setMessage("Response parsing failed");
@@ -410,8 +377,6 @@ public class CustomerServiceImpl implements CustomerService {
 				finalResponse.setStatus("FAILED");
 				finalResponse.setError(error);
 			}
-			
-			if(!resumedJourney) {
 
 			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
 					? "No Error Msg"
@@ -467,8 +432,6 @@ public class CustomerServiceImpl implements CustomerService {
 			masterRepo.save(master);
 			apiLogRepo.save(logEntity);
 			historyRepo.save(history);
-			
-		  }
 
 			return ResponseEntity.ok(finalResponse);
 
@@ -507,11 +470,15 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 
 			String publicKey = new String(Files.readAllBytes(Paths.get(keyPath))).trim();
+			log.info("Public Key :: {}", publicKey);
 
 			String encryptionKey = encrypt.generateRandomString(16);
 			String finalKey = encrypt.encryptRSA(encryptionKey, publicKey);
 			String encryptedOTP = encrypt.encryptAES(input.getOtp(), encryptionKey);
 
+			log.info("encryptionKey :: {}", encryptionKey);
+			log.info("finalKey :: {}", finalKey);
+			log.info("encryptedOTP :: {}", encryptedOTP);
 
 			// Token
 			if (!tokenManager.isAccessTokenValid()) {
@@ -583,7 +550,7 @@ public class CustomerServiceImpl implements CustomerService {
 				log.info("Verify OTP Raw Response :: {}", response.getBody());
 				responseBody = response.getBody();
 				statusCode = response.getStatusCode().value();
-				
+
 			} catch (HttpStatusCodeException ex) {
 				statusCode = ex.getStatusCode().value();
 				responseBody = ex.getResponseBodyAsString();
@@ -603,7 +570,6 @@ public class CustomerServiceImpl implements CustomerService {
 			if (statusCode != null && statusCode == 200 && responseBody != null) {
 				try {
 					finalResponse = mapper.readValue(responseBody, VerifyOtpResponseDTO.class);
-					
 				} catch (Exception e) {
 					error.setCode("500");
 					error.setMessage("Response parsing failed");
@@ -626,9 +592,9 @@ public class CustomerServiceImpl implements CustomerService {
 			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
 					input.getApplicationNumber(), input.getExternalAppRefNumber());
 
-//			if (masterEntity.isEmpty()) {
-//				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
-//			}
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
+			}
 
 			if (masterEntity.isPresent()) {
 				master = masterEntity.get();
@@ -809,12 +775,12 @@ public class CustomerServiceImpl implements CustomerService {
 					: finalResponse.getError().getMessage();
 
 			// DB Activity --------------------------------------------------------------
-			//Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumber(input.getApplicationNumber());
-			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByExternalAppRefNumber(input.getExternalAppRefNumber());
-						
-//			if (masterEntity.isEmpty()) {
-//				throw new RuntimeException("Customer not found with same Application-No");
-//			}
+			Optional<CustomerMasterEntity> masterEntity = masterRepo
+					.findByApplicationNumber(input.getApplicationNumber());
+
+			if (masterEntity.isEmpty()) {
+				throw new RuntimeException("Customer not found with same Application-No");
+			}
 
 			if (masterEntity.isPresent()) {
 				master = masterEntity.get();

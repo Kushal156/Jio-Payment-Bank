@@ -60,11 +60,14 @@ public class JPBPreOnbordingController {
 	@Autowired
 	private PreOnboardingVklMasterRepository vklmasterRepo;
 
-	@Value("${SMSURL}")
+	@Value("${sms.service.airtel.url}")
 	private String smsurl;
 
 	@Value("${apiKey}")
 	private String apiKey;
+
+	@Value("${servicetype}")
+	private String service;
 
 	@Autowired
 	RestTemplate rest;

@@ -14,7 +14,7 @@ import com.jpb.Service.RefundService;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
-@RequestMapping("/refund")
+@RequestMapping("/jpb/refund")
 @CrossOrigin("*")
 public class RefundController {
 

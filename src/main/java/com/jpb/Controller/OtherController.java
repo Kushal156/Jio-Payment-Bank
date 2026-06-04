@@ -15,7 +15,7 @@ import com.jpb.DTO.OtherCommonRequest;
 import com.jpb.Service.OtherService;
 
 @RestController
-@RequestMapping("/other")
+@RequestMapping("/jpb/other")
 @CrossOrigin("*")
 public class OtherController {
 
