@@ -12,4 +12,8 @@ public interface RefundService {
 
 	ResponseEntity<?> voucherRedeem(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
 
+	ResponseEntity<?> voucherResend(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
+	ResponseEntity<?> customerVoucherResend(CustomerInputRequestDTO request, HttpServletRequest httpRequest);
+
 }

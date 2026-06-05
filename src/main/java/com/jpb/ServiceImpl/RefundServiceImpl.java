@@ -274,4 +274,18 @@ public class RefundServiceImpl implements RefundService {
 		return null;
 	}
 
+	//Voucher Resend
+	@Override
+	public ResponseEntity<?> voucherResend(CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	//Resend Voucher to Customer
+	@Override
+	public ResponseEntity<?> customerVoucherResend(CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }

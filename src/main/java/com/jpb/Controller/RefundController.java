@@ -31,4 +31,13 @@ public class RefundController {
 		return service.voucherRedeem(request, httpRequest);
 	}
 	
+	@PostMapping("/voucher-resend")
+	public ResponseEntity<?> voucherResend(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest){
+		return service.voucherResend(request, httpRequest);
+	}
+	
+	@PostMapping("/customer-resend-voucher")
+	public ResponseEntity<?> customerVoucherResend(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest){
+		return service.customerVoucherResend(request, httpRequest);
+	}
 }

@@ -19,4 +19,6 @@ public interface CustomerMasterRepository extends JpaRepository<CustomerMasterEn
 	Optional<CustomerMasterEntity> findByExternalAppRefNumber(String externalAppRefNumber);
 	
 	List<CustomerMasterEntity> findByMobileNo(String mobileNo);
+	
+	List<CustomerMasterEntity> findByNextActionTypeAndNextActionSubType(String type, String subType);
 }

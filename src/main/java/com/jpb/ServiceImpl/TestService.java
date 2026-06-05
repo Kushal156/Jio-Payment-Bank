@@ -30,8 +30,10 @@ import com.jpb.DTO.ActionDTO;
 import com.jpb.DTO.AddOnDTO;
 import com.jpb.DTO.AddressDTO;
 import com.jpb.DTO.AgentInfoResponseDTO;
+import com.jpb.DTO.ApplicationStatusResponseDTO;
 import com.jpb.DTO.BCDetailsDTO;
 import com.jpb.DTO.ContactDetailsDTO;
+import com.jpb.DTO.CustomerCommonRequestDTO;
 import com.jpb.DTO.CustomerEAuthResponseDTO;
 import com.jpb.DTO.CustomerInputRequestDTO;
 import com.jpb.DTO.CustomerPanAadharVerifyResponseDTO;
@@ -108,6 +110,9 @@ public class TestService {
 	
 	@Value("${agentInfoURL}")
 	private String agentInfoUrl;
+	
+	@Value("${applicationStatusURL}")
+	private String applicationStatusURL;
 
 	@Autowired
 	TokenManager tokenManager;
@@ -539,6 +544,116 @@ public class TestService {
 		    	log.error("Agent Info Exception", e);
 		        throw new RuntimeException("Agent Info API failed", e);
 		    }
+	}
+	
+	//Customer Application Status Scheduler Mocked
+	@Scheduled(cron = "0 */60 * * * *") //60 min
+	public ResponseEntity<?> applicationStatus() {
+
+		ObjectMapper mapper = new ObjectMapper();
+		
+		MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+
+        // Hardcoded values
+        httpRequest.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0");
+        httpRequest.setRemoteAddr("127.0.0.1");
+
+		CustomerCommonRequestDTO finalRequest = new CustomerCommonRequestDTO();
+		ApplicationStatusResponseDTO finalResponse = new ApplicationStatusResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+			
+			List<CustomerMasterEntity> records = masterRepo.findByNextActionTypeAndNextActionSubType("SUBMITTED", "EXIT");
+
+			if(records.isEmpty()) {
+	    		log.info("No Customers found for Jio Onboarding Status.......");
+	    		error.setCode("200");
+	    		error.setMessage("No Customers found for Jio Onboarding Status");
+	    		finalResponse.setError(error);
+	    		return ResponseEntity.ok(finalResponse);
+	    	}
+			
+			for(CustomerMasterEntity customers : records) {
+				
+				try {
+					
+					// Token
+					if (!tokenManager.isAccessTokenValid()) {
+						log.info("Token expired → generating new token");
+						auth.generateToken(httpRequest);
+					}
+					
+					String externalRefNo = customers.getExternalAppRefNumber();
+					String latitude = customers.getLatitude();
+					String longitude = customers.getLongitude();
+					
+					log.info("Processing Customer ID External Ref No :: {}", externalRefNo);
+					
+					finalRequest.setExternalAppRefNumber(externalRefNo);
+					finalRequest.setInitiatingEntityId(channelId);
+					
+					HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+							tokenManager.getAppIdentifierToken(), latitude, longitude);
+					
+					HttpEntity<CustomerCommonRequestDTO> entity = new HttpEntity<>(finalRequest, headers);
+					
+					ResponseEntity<String> response = null;
+					String responseBody = null;
+					Integer statusCode = null;
+
+					
+					try {
+						response = rest.exchange(applicationStatusURL, HttpMethod.POST, entity, String.class);
+						log.info("Application Status Raw Response :: {}", response.getBody());
+						responseBody = response.getBody();
+						statusCode = response.getStatusCode().value();
+					
+					} catch (HttpStatusCodeException ex) {
+						statusCode = ex.getStatusCode().value();
+						responseBody = ex.getResponseBodyAsString();
+						log.error("API error: {}, body: {}", statusCode, responseBody);
+					
+					} catch (ResourceAccessException ex) {
+						statusCode = 408;
+						responseBody = "Timeout: " + ex.getMessage();
+						log.error("API timeout", ex);
+					
+					} catch (Exception ex) {
+						statusCode = 500;
+						responseBody = "Unexpected error: " + ex.getMessage();
+						log.error("API failure", ex);
+					}
+					
+					if (statusCode != null && statusCode == 200 && responseBody != null) {
+						try {
+							finalResponse = mapper.readValue(responseBody, ApplicationStatusResponseDTO.class);
+							
+							if("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+								
+								
+							} else {
+								
+							}
+							
+						} catch (Exception e) {
+							error.setCode("500");
+							error.setMessage("Response parsing failed");
+							finalResponse.setError(error);
+							finalResponse.setStatus("FAILED");
+						}
+					} else {
+					
+						error.setCode(String.valueOf(statusCode));
+						error.setMessage(responseBody != null ? responseBody : "API Failed");
+						finalResponse.setStatus("FAILED");
+						finalResponse.setError(error);
+					}
+					
+				} catch(Exception e) {
+					log.error("Application Status Exception", e);
+					throw new RuntimeException("Application Status failed", e);
+				}
+			}
+			return ResponseEntity.ok(finalResponse);
 	}
 
 }
