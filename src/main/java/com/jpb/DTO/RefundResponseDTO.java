@@ -17,6 +17,8 @@ public class RefundResponseDTO {
 	private String status;
 	private String message;
 	private NextActionDTO nextAction;
+	private RefundDataDTO data; 
+	private List<VoucherDetailsDTO> voucherDetails;
 	
 	private ErrorDetails error;
 }

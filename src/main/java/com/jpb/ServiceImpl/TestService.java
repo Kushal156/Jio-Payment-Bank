@@ -189,7 +189,6 @@ public class TestService {
 			else {
 
 				consents.add(buildConsent.apply("C05", "मैं जियो पेमेंट्स बैंक को संदेश भेजने के लिए सहमति देता हूं।"));
-
 				consents.add(buildConsent.apply("C06", "मैं नियमों और शर्तों से सहमत हूं।"));
 
 				consents.add(buildConsent.apply("C32", "मैं केवाईसी विवरण साझा करने के लिए सहमति देता हूं।"));
@@ -627,11 +626,13 @@ public class TestService {
 						try {
 							finalResponse = mapper.readValue(responseBody, ApplicationStatusResponseDTO.class);
 							
+							//Success
 							if("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
-								
+								customers.setJioStatus("");
 								
 							} else {
-								
+								//Failure
+								customers.setJioStatus("");
 							}
 							
 						} catch (Exception e) {

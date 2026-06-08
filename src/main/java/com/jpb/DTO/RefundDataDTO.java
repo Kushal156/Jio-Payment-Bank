@@ -10,12 +10,10 @@ import lombok.ToString;
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class VoucherDetailsDTO {
+public class RefundDataDTO {
 
-	 private String voucherCode;
-	 
-	 //voucher verify params
-	 private String voucherStatus;
-	 private String netAmount;
-	 private String voucherOrn;
+	private String applicationStatus;
+	private String applicationStatusReasonCode;
+	private String applicationStatusReasonDescription;
+	private List<PersonDTO> persons;
 }

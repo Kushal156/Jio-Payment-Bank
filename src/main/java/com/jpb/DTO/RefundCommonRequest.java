@@ -13,6 +13,7 @@ import lombok.ToString;
 public class RefundCommonRequest {
 
     private String externalAppRefNumber;
+    private String applicationNumber;
     private String apiVersion;
     private ActionDTO action;
     private String applicationType;
@@ -22,4 +23,7 @@ public class RefundCommonRequest {
     private OrganizationDTO organization;
     private BCDetailsDTO bcDetails;
     private List<VoucherDetailsDTO> voucherDetails;
+    private List<ConsentDTO> consents;
+    private List<AuthenticateEkycDTO> authenticateList;
+    
 }

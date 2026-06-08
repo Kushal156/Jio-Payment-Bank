@@ -116,4 +116,7 @@ public class CustomerMasterEntity {
     
     @Column(name = "vkid")
     private String vkid;
+    
+    @Column(name = "jio_status")
+    private String jioStatus;
 }

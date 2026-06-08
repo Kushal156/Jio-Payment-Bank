@@ -59,7 +59,7 @@ public class CommonController {
 	public String checkCache() {
 
 	    Cache subs = cacheManager.getCache("accountSubscriptionCache");
-	    Cache consents = cacheManager.getCache("");
+	    Cache consents = cacheManager.getCache("ConsentsCache");
 	    
 	    Object subsValue = subs.get("SUBSCRIPTION");
 	    Object consentsValue = consents.get("CONSENTS");

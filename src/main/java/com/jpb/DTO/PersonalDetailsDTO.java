@@ -16,4 +16,9 @@ public class PersonalDetailsDTO {
 
 	private String maritalStatus;
 	
+	//new params added for Refund
+	private String firstName;
+	private String middleName;
+	private String lastName;
+	
 }

@@ -2211,9 +2211,9 @@ public class CustomerServiceImpl implements CustomerService {
 			request.setAction(action);
 			
 			// Consents
-			   Optional.ofNullable(input.getConsents()).ifPresent(con -> {
+			Optional.ofNullable(input.getConsents()).ifPresent(con -> {
 			    request.setConsents(con);
-			   });
+			});
 
 			// Organization
 			OrganizationDTO org = new OrganizationDTO();

@@ -1,6 +1,7 @@
 package com.jpb.ServiceImpl;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +20,7 @@ import com.jpb.Config.TokenManager;
 import com.jpb.DTO.RefundResponseDTO;
 import com.jpb.DTO.SubmitApplicationResponseDTO;
 import com.jpb.DTO.ActionDTO;
+import com.jpb.DTO.AuthenticateEkycDTO;
 import com.jpb.DTO.BCDetailsDTO;
 import com.jpb.DTO.ContactDetailsDTO;
 import com.jpb.DTO.CustomerInputRequestDTO;
@@ -31,9 +33,13 @@ import com.jpb.DTO.VerifyOtpResponseDTO;
 import com.jpb.DTO.VoucherDetailsDTO;
 import com.jpb.Entity.AgentMasterEntity;
 import com.jpb.Entity.CustomerMasterEntity;
+import com.jpb.Entity.CustomerRefundApiLogEntity;
+import com.jpb.Entity.CustomerRefundHistoryEntity;
 import com.jpb.Entity.CustomerRefundMasterEntity;
 import com.jpb.Repository.AgentMasterRepository;
 import com.jpb.Repository.CustomerMasterRepository;
+import com.jpb.Repository.CustomerRefundApiLogRepository;
+import com.jpb.Repository.CustomerRefundHistoryRepository;
 import com.jpb.Repository.CustomerRefundMasterRepository;
 import com.jpb.Service.RefundService;
 
@@ -77,6 +83,12 @@ public class RefundServiceImpl implements RefundService {
 	
 	@Autowired
 	CustomerRefundMasterRepository refundRepo;
+	
+	@Autowired
+	CustomerRefundHistoryRepository refundHistoryRepo;
+	
+	@Autowired
+	CustomerRefundApiLogRepository refundLogRepo;
 
 	//Voucher Verify
 	@Override
@@ -85,9 +97,12 @@ public class RefundServiceImpl implements RefundService {
 		
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
-		Integer masterId = null;
+		Integer masterId = null; //Refund Table ID
+		Integer customerMasterId = null; //Customer Master Table ID
+		String mainRefNo = null; // Customer table ExternalRefNo
 		CustomerMasterEntity master = null;
-		CustomerRefundMasterEntity refundMaster = null;
+		CustomerRefundMasterEntity refundMaster = new CustomerRefundMasterEntity();
+		CustomerRefundHistoryEntity history = new CustomerRefundHistoryEntity();
 		RefundResponseDTO finalResponse = new RefundResponseDTO();
 		ErrorDetails error = new ErrorDetails();
 		try {
@@ -114,7 +129,8 @@ public class RefundServiceImpl implements RefundService {
 	                })
 	                .orElse(null);
 			
-			String externalRefNo = "JPBR" + System.currentTimeMillis();
+			String externalRefNo = "JPBV" + String.valueOf(System.currentTimeMillis())
+            	.substring(String.valueOf(System.currentTimeMillis()).length() - 12);
 			
 			//Request
 			RefundCommonRequest request = new RefundCommonRequest();
@@ -154,6 +170,24 @@ public class RefundServiceImpl implements RefundService {
 			request.setVoucherDetails(List.of(voucher));
 			
 			log.info("JSON Request for Refund Voucher Verify :: {}", mapper.writeValueAsString(request));
+			
+			//DB Activity-------------------------------------
+			refundMaster.setExternalAppRefNumber(externalRefNo);
+			refundMaster.setMobileNo(input.getMobileNumber());
+			refundMaster.setVoucherCode(input.getVoucherCode());
+			refundMaster.setApplicationType(applicationType);
+			refundMaster.setApplicationSubType("Refund");
+			refundMaster.setActionType("VOUCHER");
+			refundMaster.setActionSubType("VERIFY");
+			refundMaster.setLatitude(input.getLatitude());
+			refundMaster.setLongitude(input.getLongitude());
+			refundMaster.setVkid(input.getVkid());
+			refundMaster.setJioAgentId(agentId);
+			refundMaster.setStage(1);
+			refundMaster.setCreateDateTime(LocalDateTime.now());
+			
+			refundMaster = refundRepo.save(refundMaster);
+			masterId = refundMaster.getId();
 			
 			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
 					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
@@ -205,50 +239,85 @@ public class RefundServiceImpl implements RefundService {
 			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
 					? "No Error Msg" : finalResponse.getError().getMessage();
 			
-			//DB Activity-------------------------------------
-			refundMaster.setExternalAppRefNumber(externalRefNo);
-			refundMaster.setMobileNo(input.getMobileNumber());
-			refundMaster.setVoucherCode(input.getVoucherCode());
-			refundMaster.setApplicationType(applicationType);
-			refundMaster.setApplicationSubType("Refund");
-			refundMaster.setActionType("VOUCHER");
-			refundMaster.setActionSubType("VERIFY");
-			refundMaster.setLatitude(input.getLatitude());
-			refundMaster.setLongitude(input.getLongitude());
-			refundMaster.setVkid(input.getVkid());
-			refundMaster.setJioAgentId(agentId);
-			refundMaster.setStage(1);
-			refundMaster.setCreateDateTime(LocalDateTime.now());
-			
 			//Success Response
 			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
 				
 				Optional<CustomerMasterEntity> masterEntity = masterRepo.findByExternalAppRefNumber(input.getExternalAppRefNumber());
 
 				if (masterEntity.isEmpty()) {
-					throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
+					error.setCode("200");
+					error.setMessage("Customer not found with same ExternalRefNo");
+					finalResponse.setError(error);
+					return ResponseEntity.ok(finalResponse);
 				}
 				
 				//Customer Master
 				if (masterEntity.isPresent()) {
 					master = masterEntity.get();
-					masterId = master.getId();
-					log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
-
-					master.setActionType("VOUCHER");
-					master.setActionSubType("VERIFY");
-					master.setNextActionType(finalResponse.getNextAction().getType());
-					master.setNextActionSubType(finalResponse.getNextAction().getSubType());
-					master.setStatus(finalResponse.getStatus());
+					customerMasterId = master.getId();
+					log.info("VKID :: {}, row :: {}", input.getVkid(), customerMasterId);
+					
+					refundMaster.setMasterExternalAppRefNumber(master.getExternalAppRefNumber());
+					refundMaster.setMasterId(masterId);
 				}
 				
-				//History
+				//Refund Master
+				if (finalResponse.getNextAction() != null) {
+				    refundMaster.setNextActionType(finalResponse.getNextAction().getType());
+				    refundMaster.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				} else {
+				    refundMaster.setNextActionType(null);
+				    refundMaster.setNextActionSubType(null);
+				}
 				
-				//API Log
+				refundMaster.setNextActionType(finalResponse.getNextAction().getType());
+				refundMaster.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				refundMaster.setStage(2);
+				
+				//History
+				history.setNextActionType(finalResponse.getNextAction().getType());
+				history.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				history.setRemarks("Voucher Code Verified");
+				
+			} else {
+				//Failure Case
+				
+				refundMaster.setStage(1);
+				history.setRemarks("Voucher Code Verification Pending");
 			}
 			
-			masterRepo.save(master);
+			refundMaster.setAmount("");//amount
+			refundMaster.setStatus(finalResponse.getStatus());
+			refundMaster.setApplicationNumber(finalResponse.getApplicationNumber());
+			refundMaster.setUpdateDateTime(LocalDateTime.now());
+			
+			//History
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(externalRefNo);
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(request.getApplicationType());
+			history.setApplicationSubType(request.getApplicationSubType());
+			history.setApiName("REFUND_VOUCHER_VERIFY");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType(request.getAction().getType());
+			history.setActionSubType(request.getAction().getSubType());
+			history.setJioAgentId(agentId);
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setVkid(input.getVkid());
+			
+			//Logs
+			CustomerRefundApiLogEntity logEntity = new CustomerRefundApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("REFUND_VOUCHER_VERIFY");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(mapper.writeValueAsString(finalResponse));
+			logEntity.setStatusCode(statusCode);
+			logEntity.setTraceId(externalRefNo);
+			logEntity.setCreatedAt(LocalDateTime.now());			
+			
 			refundRepo.save(refundMaster);
+			refundLogRepo.save(logEntity);
+			refundHistoryRepo.save(history);			
 			
 			//--------------------------------------------
 
@@ -269,9 +338,188 @@ public class RefundServiceImpl implements RefundService {
 
 	//Voucher Redeem
 	@Override
-	public ResponseEntity<?> voucherRedeem(CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
+	public ResponseEntity<?> voucherRedeem(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		log.info("Voucher Redeem Request from Customer :: {}", input.toString());
 		
-		return null;
+		ObjectMapper mapper = new ObjectMapper();
+		String agentId = null;
+		Integer refundMasterId = null;
+		CustomerMasterEntity master = null;
+		CustomerRefundMasterEntity refundMaster = new CustomerRefundMasterEntity();
+		CustomerRefundHistoryEntity history = new CustomerRefundHistoryEntity();
+		RefundResponseDTO finalResponse = new RefundResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+		
+		log.info("JSON Request from Customer for Voucher Redeem :: {}", mapper.writeValueAsString(input));
+		String base64String = util.convertPidXmlToBase64Json(input.getBioMetricData());
+		
+		try {
+			
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+					log.info("Token expired → generating new token");
+					auth.generateToken(httpRequest);
+			}
+			
+			agentId = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid())
+	                .map(agent -> {
+	                    log.info("Agent Master Details for VKID {} :: {}", input.getVkid(), agent);
+	                    return agent.getJioAgentId();
+	                })
+	                .orElse(null);
+			
+			//Request
+			RefundCommonRequest request = new RefundCommonRequest();
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType("Refund");
+			request.setInitiatingEntityId(channelId);
+			
+			//Action
+			ActionDTO action = new ActionDTO();
+			action.setType("VOUCHER");
+			action.setSubType("REDEEM");
+			request.setAction(action);
+			
+			//BC Details
+			BCDetailsDTO bc = new BCDetailsDTO();
+			bc.setUserId(agentId);
+			request.setBcDetails(bc);
+			
+			//Authenticate List
+			AuthenticateEkycDTO authenticate = new AuthenticateEkycDTO();
+			authenticate.setValue(base64String);
+			request.setAuthenticateList(Collections.singletonList(authenticate));
+			
+			//Consents
+			Optional.ofNullable(input.getConsents()).ifPresent(con -> {
+			   request.setConsents(con);
+			});
+			
+			log.info("JSON Request for Redeem Voucher :: {}", mapper.writeValueAsString(request));
+			
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<RefundCommonRequest> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+			
+			try {
+				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
+				log.info("Redeem Voucher Verify Raw Response :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+			
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					finalResponse = mapper.readValue(responseBody, RefundResponseDTO.class);
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+			
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg" : finalResponse.getError().getMessage();
+			
+			//DB Activity-------------------------------------
+			Optional<CustomerRefundMasterEntity> masterEntity = refundRepo.findByExternalAppRefNumber(request.getExternalAppRefNumber());
+			
+			if(masterEntity.isEmpty()) {
+				throw new RuntimeException("Refund External Ref Number not found in DB");
+			}
+			
+			if(masterEntity.isPresent()) {
+				refundMaster = masterEntity.get();
+				refundMasterId = refundMaster.getId();
+				
+				refundMaster.setActionType(request.getAction().getType());
+				refundMaster.setActionSubType(request.getAction().getSubType());
+				
+				if("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+					
+					refundMaster.setNextActionType(finalResponse.getNextAction().getType());
+					refundMaster.setNextActionSubType(finalResponse.getNextAction().getSubType());
+					refundMaster.setStatus(finalResponse.getStatus());
+					refundMaster.setStage(3);
+					
+					history.setRemarks("Voucher Code Redeemed");
+				} else {
+					//Failure Case
+					
+					history.setRemarks("Voucher Code Redemption Pending");
+				}
+			}
+			
+			refundMaster.setActionType(request.getAction().getType());
+			refundMaster.setActionSubType(request.getAction().getSubType());
+			
+			//History
+			history.setMasterId(refundMasterId);
+			history.setExternalAppRefNo(finalResponse.getExternalAppRefNumber());
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(request.getApplicationType());
+			history.setApplicationSubType(request.getApplicationSubType());
+			history.setApiName("REFUND_VOUCHER_REDEEM");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType(request.getAction().getType());
+			history.setActionSubType(request.getAction().getSubType());
+			history.setJioAgentId(agentId);
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setVkid(input.getVkid());
+			
+			//Logs
+			CustomerRefundApiLogEntity logEntity = new CustomerRefundApiLogEntity();
+			logEntity.setMasterId(refundMasterId);
+			logEntity.setApiName("REFUND_VOUCHER_REDEEM");
+			logEntity.setRequestPayload(mapper.writeValueAsString(request));
+			logEntity.setResponsePayload(mapper.writeValueAsString(finalResponse));
+			logEntity.setStatusCode(statusCode);
+			logEntity.setTraceId(request.getExternalAppRefNumber());
+			logEntity.setCreatedAt(LocalDateTime.now());
+			
+			//------------------------------------------------
+			
+			return ResponseEntity.ok(response.getBody());
+						
+		} catch(Exception e) {
+			log.error("Refund Voucher Redeem Exception", e);
+
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}
 	}
 
 	//Voucher Resend
