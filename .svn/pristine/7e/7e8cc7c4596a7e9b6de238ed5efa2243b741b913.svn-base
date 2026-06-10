@@ -18,7 +18,4 @@ public class VoucherDetailsDTO {
 	 private String voucherStatus;
 	 private String netAmount;
 	 private String voucherOrn;
-	 
-	 //voucher redeem
-	 private String transactionId;
 }

@@ -37,9 +37,7 @@ import com.jpb.Entity.CustomerMasterEntity;
 import com.jpb.Entity.CustomerRefundApiLogEntity;
 import com.jpb.Entity.CustomerRefundHistoryEntity;
 import com.jpb.Entity.CustomerRefundMasterEntity;
-import com.jpb.Entity.DebitTransactionEntity;
 import com.jpb.Repository.AgentMasterRepository;
-import com.jpb.Repository.CreditTransactionRepository;
 import com.jpb.Repository.CustomerMasterRepository;
 import com.jpb.Repository.CustomerRefundApiLogRepository;
 import com.jpb.Repository.CustomerRefundHistoryRepository;
@@ -65,22 +63,6 @@ public class RefundServiceImpl implements RefundService {
 
 	@Value("${generateOtpURL}")
 	private String URL;
-	
-	//Static Values
-	@Value("${serviceID}")
-	private String serviceID;
-
-	@Value("${SubServiceID}")
-	private String subServiceID;
-
-	@Value("${virtual.SubSubServiceID}")
-	private String virtualSubSubServiceID;
-
-	@Value("${physical.SubSubServiceID}")
-	private String physicalSubSubServiceID;
-	
-	@Value("${walletID}")
-	private String walletID;
 
 	@Autowired
 	RestTemplate rest;
@@ -108,9 +90,6 @@ public class RefundServiceImpl implements RefundService {
 
 	@Autowired
 	CustomerRefundApiLogRepository refundLogRepo;
-	
-	@Autowired
-	CreditTransactionRepository creditRepo;
 
 	// Voucher Verify
 	@Override
@@ -264,15 +243,11 @@ public class RefundServiceImpl implements RefundService {
 			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
 
 				VoucherDetailsDTO responseVoucher = Optional.ofNullable(finalResponse.getData())
-						.map(RefundDataDTO::getVoucherDetails)
-						.filter(list -> !list.isEmpty())
-						.map(list -> list.get(0))
+						.map(RefundDataDTO::getVoucherDetails).filter(list -> !list.isEmpty()).map(list -> list.get(0))
 						.orElse(null);
 
-				String voucherORN = responseVoucher != null ? responseVoucher.getVoucherOrn() : null;
+				String voucherORN = responseVoucher != null ? responseVoucher.getVoucherCode() : null;
 				String amount = responseVoucher != null ? responseVoucher.getNetAmount() : null;
-				
-				log.info("Voucher ORN :: {}, Amount :: {}", voucherORN, amount);
 
 				refundMaster.setAmount(amount);
 
@@ -293,7 +268,6 @@ public class RefundServiceImpl implements RefundService {
 
 					refundMaster.setMasterExternalAppRefNumber(master.getApplicationNumber());
 					refundMaster.setMasterId(masterId);
-					refundMaster.setVakTransactionId(master.getTransactionId()!= null ? master.getTransactionId() : null);
 				}
 
 				// Refund Master
@@ -382,8 +356,6 @@ public class RefundServiceImpl implements RefundService {
 		CustomerRefundHistoryEntity history = new CustomerRefundHistoryEntity();
 		RefundResponseDTO finalResponse = new RefundResponseDTO();
 		ErrorDetails error = new ErrorDetails();
-		String vakTransactionId = null;
-		Double amount = 0.00;
 
 		log.info("JSON Request from Customer for Voucher Redeem :: {}", mapper.writeValueAsString(input));
 		String base64String = util.convertPidXmlToBase64Json(input.getBioMetricData());
@@ -485,7 +457,8 @@ public class RefundServiceImpl implements RefundService {
 					: finalResponse.getError().getMessage();
 
 			// DB Activity-------------------------------------
-			Optional<CustomerRefundMasterEntity> masterEntity = refundRepo.findByExternalAppRefNumber(request.getExternalAppRefNumber());
+			Optional<CustomerRefundMasterEntity> masterEntity = refundRepo
+					.findByExternalAppRefNumber(request.getExternalAppRefNumber());
 
 			if (masterEntity.isEmpty()) {
 				throw new RuntimeException("Refund External Ref Number not found in DB");
@@ -494,55 +467,21 @@ public class RefundServiceImpl implements RefundService {
 			if (masterEntity.isPresent()) {
 				refundMaster = masterEntity.get();
 				refundMasterId = refundMaster.getId();
-				vakTransactionId = refundMaster.getVakTransactionId();
-				amount = Double.parseDouble(refundMaster.getAmount());
-				
-				log.info("Vakrangee Transaction ID :: {}, Refund Amount :: {}", vakTransactionId, amount);
 
 				refundMaster.setActionType(request.getAction().getType());
 				refundMaster.setActionSubType(request.getAction().getSubType());
 
 				if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
 
-					VoucherDetailsDTO responseVoucher = Optional.ofNullable(finalResponse.getData())
-							.map(RefundDataDTO::getVoucherDetails)
-							.filter(list -> !list.isEmpty())
-							.map(list -> list.get(0))
-							.orElse(null);
-					
 					refundMaster.setNextActionType(finalResponse.getNextAction().getType());
 					refundMaster.setNextActionSubType(finalResponse.getNextAction().getSubType());
 					refundMaster.setStatus(finalResponse.getStatus());
 					refundMaster.setStage(3);
-					refundMaster.setJioTransactionId(responseVoucher.getTransactionId());
-					refundMaster.setVoucherStatus(responseVoucher.getVoucherStatus());
-					refundMaster.setRejectReason(finalResponse.getData().getApplicationStatusReasonDescription());;
-					
+
 					history.setRemarks("Voucher Code Redeemed");
-					
-					String CardSubSubServiceId = 100 == amount ? virtualSubSubServiceID : physicalSubSubServiceID;
-					
-					//Wallet Reversal For Franchise
-					DebitTransactionEntity credit = creditRepo.creditTransaction(
-						vakTransactionId, "Refund for Voucher Redemption",serviceID, subServiceID, 
-						CardSubSubServiceId, input.getVkid(), walletID, amount);
-					
-					String refundStatus = credit.getUpdateStatus();
-					refundMaster.setVakCreditStatus(refundStatus);
-					
-					log.info("Credit Status :: {}, Refund Status :: {}", credit.toString(), refundStatus);
-					
-					if("Y".equalsIgnoreCase(refundStatus)) {
-						log.info("Refund Successful---->");
-					} else {
-						log.info("Refund Pending---->");
-					}
-					
 				} else {
 					// Failure Case
-					refundMaster.setNextActionType(finalResponse.getNextAction().getType());
-					refundMaster.setNextActionSubType(finalResponse.getNextAction().getSubType());
-					
+
 					history.setRemarks("Voucher Code Redemption Pending");
 				}
 			}
@@ -576,7 +515,7 @@ public class RefundServiceImpl implements RefundService {
 
 			// ------------------------------------------------
 
-			return ResponseEntity.ok(finalResponse);
+			return ResponseEntity.ok(response.getBody());
 
 		} catch (Exception e) {
 			log.error("Refund Voucher Redeem Exception", e);
@@ -592,7 +531,7 @@ public class RefundServiceImpl implements RefundService {
 
 	// Voucher Resend
 	@Override
-	public ResponseEntity<?> voucherResend(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+	public ResponseEntity<?> voucherResend(CustomerInputRequestDTO request, HttpServletRequest httpRequest) {
 
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
@@ -607,115 +546,8 @@ public class RefundServiceImpl implements RefundService {
 
 		try {
 
-			log.info("Voucher Resend Request from Customer :: {}", input.toString());
-			
-			// Token
-			if (!tokenManager.isAccessTokenValid()) {
-				log.info("Token expired → generating new token");
-				auth.generateToken(httpRequest);
-			}
+			log.info(mainRefNo);
 
-			agentId = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid()).map(agent -> {
-							log.info("Agent Master Details for VKID {} :: {}", input.getVkid(), agent);
-							return agent.getJioAgentId();
-						}).orElse(null);
-
-			String externalRefNo = "JPBV" + String.valueOf(System.currentTimeMillis())
-								.substring(String.valueOf(System.currentTimeMillis()).length() - 12);
-
-			// Request
-			RefundCommonRequest request = new RefundCommonRequest();
-			request.setExternalAppRefNumber(externalRefNo);
-			request.setApiVersion(apiVersion);
-			request.setApplicationType(applicationType);
-			request.setApplicationSubType("Refund");
-			request.setInitiatingEntityId(channelId);
-
-			// Action
-			ActionDTO action = new ActionDTO();
-			action.setType("VOUCHER");
-			action.setSubType("RESEND");
-			request.setAction(action);
-			
-			// Persons
-			PersonDTO person = new PersonDTO();
-			person.setPersonType("INDIVIDUAL");
-			
-			ContactDetailsDTO contact = new ContactDetailsDTO();
-			contact.setMobileNumber(input.getMobileNumber());
-			person.setContactDetails(Collections.singletonList(contact));
-			request.setPersons(Collections.singletonList(person));
-			
-			// Organization
-			OrganizationDTO org = new OrganizationDTO();
-			org.setId(channelId);
-			request.setOrganization(org);
-
-			// BC Details
-			BCDetailsDTO bc = new BCDetailsDTO();
-			bc.setUserId(agentId);
-			request.setBcDetails(bc);
-
-			// Voucher
-			VoucherDetailsDTO voucher = new VoucherDetailsDTO();
-			voucher.setVoucherOrn(input.getVoucherCode());
-			request.setVoucherDetails(List.of(voucher));
-			
-			log.info("JSON Request for Resend Customer Refund Voucher Code :: {}", mapper.writeValueAsString(request));
-			
-			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
-					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
-
-			HttpEntity<RefundCommonRequest> entity = new HttpEntity<>(request, headers);
-
-			ResponseEntity<String> response = null;
-			String responseBody = null;
-			Integer statusCode = null;
-
-			try {
-				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
-				log.info("Resend Refund Voucher Code Raw Response :: {}", response.getBody());
-				responseBody = response.getBody();
-				statusCode = response.getStatusCode().value();
-
-			} catch (HttpStatusCodeException ex) {
-				statusCode = ex.getStatusCode().value();
-				responseBody = ex.getResponseBodyAsString();
-				log.error("API error: {}, body: {}", statusCode, responseBody);
-
-			} catch (ResourceAccessException ex) {
-				statusCode = 408;
-				responseBody = "Timeout: " + ex.getMessage();
-				log.error("API timeout", ex);
-
-			} catch (Exception ex) {
-				statusCode = 500;
-				responseBody = "Unexpected error: " + ex.getMessage();
-				log.error("API failure", ex);
-			}
-
-			if (statusCode != null && statusCode == 200 && responseBody != null) {
-				try {
-					finalResponse = mapper.readValue(responseBody, RefundResponseDTO.class);
-				} catch (Exception e) {
-					error.setCode("500");
-					error.setMessage("Response parsing failed");
-					finalResponse.setError(error);
-					finalResponse.setStatus("FAILED");
-				}
-			} else {
-				error.setCode(String.valueOf(statusCode));
-				error.setMessage(responseBody != null ? responseBody : "API Failed");
-				finalResponse.setStatus("FAILED");
-				finalResponse.setError(error);
-			}
-
-			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
-					? "No Error Msg"
-					: finalResponse.getError().getMessage();
-			
-			return ResponseEntity.ok(response.getBody());
-			
 		} catch (Exception e) {
 			log.error("Refund Voucher Resend Exception", e);
 
@@ -726,9 +558,10 @@ public class RefundServiceImpl implements RefundService {
 
 			return ResponseEntity.ok(finalResponse);
 		}
+		return null;
 	}
 
-	// ORN Search failed for Customer
+	// Resend Voucher to Customer
 	@Override
 	public ResponseEntity<?> customerVoucherFailed(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
 		

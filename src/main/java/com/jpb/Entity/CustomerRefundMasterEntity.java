@@ -89,4 +89,13 @@ public class CustomerRefundMasterEntity {
 
     @Column(name = "update_date_time")
     private LocalDateTime updateDateTime;
+    
+    @Column(name = "jio_transaction_id")
+    private String jioTransactionId;
+    
+    @Column(name = "vak_transaction_id")
+    private String vakTransactionId;
+    
+    @Column(name = "vak_credit_status")
+    private String vakCreditStatus;
 }
