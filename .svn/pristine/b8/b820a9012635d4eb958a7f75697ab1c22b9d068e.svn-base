@@ -19,9 +19,13 @@ public interface CreditTransactionRepository extends JpaRepository<DebitTransact
             @Param("ServiceId") String serviceId,
             @Param("subServiceId") String subServiceId,
             @Param("subSubServiceId") String subSubServiceId,
+            //@Param("subSubSubServiceId") String subSubSubServiceId,
             @Param("vkid") String vkid,
             @Param("walletId") String walletId,
             @Param("transactionAmount") Double transactionAmount
-
+            //@Param("bcid") String bcid,
+            //@Param("rrnnumber") String rrnnumber,
+            //@Param("transactionauthenticationtype") String transactionauthenticationtype,
+            //@Param("transactiontype") String transactiontype
     );
 }

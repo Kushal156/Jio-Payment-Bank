@@ -257,7 +257,8 @@ public class RefundServiceImpl implements RefundService {
 			}
 
 			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
-					? "No Error Msg" : finalResponse.getError().getMessage();
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
 
 			// Success Response
 			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
@@ -481,7 +482,8 @@ public class RefundServiceImpl implements RefundService {
 			}
 
 			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
-					? "No Error Msg" : finalResponse.getError().getMessage();
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
 
 			// DB Activity-------------------------------------
 			Optional<CustomerRefundMasterEntity> masterEntity = refundRepo.findByExternalAppRefNumber(request.getExternalAppRefNumber());
