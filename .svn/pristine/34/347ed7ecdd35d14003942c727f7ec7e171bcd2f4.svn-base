@@ -58,7 +58,6 @@ import com.jpb.DTO.SubmitApplicationRequstDTO;
 import com.jpb.DTO.SubmitApplicationResponseDTO;
 import com.jpb.DTO.VoucherDetailsDTO;
 import com.jpb.Entity.AgentMasterEntity;
-import com.jpb.Entity.CreditTransactionEntity;
 import com.jpb.Entity.CustomerApiLogEntity;
 import com.jpb.Entity.CustomerHistoryEntity;
 import com.jpb.Entity.CustomerMasterEntity;
@@ -171,13 +170,17 @@ public class TestService {
 	CreditTransactionRepository creditRepo;
 	
 	//Voucher Redeem Mocked
-	@Transactional
 	public ResponseEntity<?> voucherRedeem(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
 		log.info("Voucher Redeem Request from Customer :: {}", input.toString());
 
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
+		Integer refundMasterId = null;
+		CustomerMasterEntity master = null;
+		CustomerRefundMasterEntity refundMaster = new CustomerRefundMasterEntity();
+		CustomerRefundHistoryEntity history = new CustomerRefundHistoryEntity();
 		RefundResponseDTO finalResponse = new RefundResponseDTO();
+		ErrorDetails error = new ErrorDetails();
 		String vakTransactionId = null;
 		Double amount = 0.00;
 
@@ -304,7 +307,7 @@ public class TestService {
 					String CardSubSubServiceId = 100 == amount ? virtualSubSubServiceID : physicalSubSubServiceID;
 					
 					//Wallet Reversal For Franchise
-					CreditTransactionEntity credit = creditRepo.creditTransaction(
+					DebitTransactionEntity credit = creditRepo.creditTransaction(
 						vakTransactionId, "Refund for Voucher Redemption",serviceID, subServiceID, 
 						CardSubSubServiceId, input.getVkid(), walletID, amount);
 					

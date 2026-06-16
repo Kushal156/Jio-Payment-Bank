@@ -1,0 +1,40 @@
+package com.jpb.DTO;
+
+import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.jpb.DTO.ConsentDataDTO;
+import com.jpb.DTO.ErrorDetails;
+import com.jpb.DTO.SubscriptionDataDTO;
+
+import lombok.Data;
+import lombok.ToString;
+
+@Data
+@ToString
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class CommonResponseDTO {
+
+	private String status;
+	private ErrorDetails error;
+	private String message;
+	
+	//Consents
+	private ConsentDataDTO response;
+	//Account Subscription
+	private Integer code;
+	private List<SubscriptionDataDTO> data;
+	
+	//pincode details
+	private String district;
+	private String stateCode;
+	private String stateName;
+	private String cityName;
+	
+	//Customer List Details
+	private Object customer;
+	
+}

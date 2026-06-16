@@ -1,0 +1,24 @@
+package com.jpb.DTO;
+
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import lombok.Data;
+import lombok.ToString;
+
+@Data
+@ToString
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class RefundResponseDTO {
+	
+	private String externalAppRefNumber;
+	private String applicationNumber;
+	private String status;
+	private String message;
+	private NextActionDTO nextAction;
+	private RefundDataDTO data; 
+//	private String data;
+	
+	private ErrorDetails error;
+}

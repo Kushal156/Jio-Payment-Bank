@@ -11,6 +11,6 @@ import lombok.ToString;
 public class DebitTransactionEntity {
 
 	@Id
-	@Column(name = "updateStatus")
+	@Column(name = "[updateStatus]")
 	private String updateStatus;
 }

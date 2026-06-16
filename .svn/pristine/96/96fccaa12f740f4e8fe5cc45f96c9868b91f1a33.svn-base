@@ -35,7 +35,6 @@ import com.jpb.DTO.RefundDataDTO;
 import com.jpb.DTO.VerifyOtpResponseDTO;
 import com.jpb.DTO.VoucherDetailsDTO;
 import com.jpb.Entity.AgentMasterEntity;
-import com.jpb.Entity.CreditTransactionEntity;
 import com.jpb.Entity.CustomerMasterEntity;
 import com.jpb.Entity.CustomerRefundApiLogEntity;
 import com.jpb.Entity.CustomerRefundHistoryEntity;
@@ -54,7 +53,6 @@ import com.jpb.Repository.ResendVoucherMasterRepository;
 import com.jpb.Service.RefundService;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.ObjectMapper;
 
@@ -385,7 +383,6 @@ public class RefundServiceImpl implements RefundService {
 
 	// Voucher Redeem
 	@Override
-	@Transactional
 	public ResponseEntity<?> voucherRedeem(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
 		log.info("Voucher Redeem Request from Customer :: {}", input.toString());
 
@@ -537,7 +534,7 @@ public class RefundServiceImpl implements RefundService {
 					String CardSubSubServiceId = 100 == amount ? virtualSubSubServiceID : physicalSubSubServiceID;
 					
 					//Wallet Reversal For Franchise
-					CreditTransactionEntity credit = creditRepo.creditTransaction(
+					DebitTransactionEntity credit = creditRepo.creditTransaction(
 						vakTransactionId, "Refund for Voucher Redemption",serviceID, subServiceID, 
 						CardSubSubServiceId, input.getVkid(), walletID, amount);
 					
