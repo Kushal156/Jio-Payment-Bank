@@ -1,0 +1,62 @@
+package com.jpb.Entity;
+
+import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import lombok.Data;
+
+@Entity
+@Data
+public class CustomerListEntity {
+
+	@Id
+	@Column(name = "external_app_ref_number", length = 50)
+    private String externalAppRefNumber;
+
+    @Column(name = "application_number", length = 50)
+    private String applicationNumber;
+    
+    @Column(name = "mobile_no", length = 10)
+    private String mobileNo;
+    
+    @Column(name = "email", length = 50)
+    private String email;
+
+    @Column(name = "jio_agent_id", length = 50)
+    private String jioAgentId;
+    
+    @Column(name = "latitude", length = 10)
+    private String latitude;
+
+    @Column(name = "longitude", length = 10)
+    private String longitude;
+    
+    @Column(name = "status", length = 50)
+    private String status;
+    
+    @Column(name = "pan_no", length = 50)
+    private String panNo;
+    
+    @Column(name = "aadhar_no")
+    private String aadharNo;
+    
+    @Column(name = "stage")
+    private String stage;
+    
+    @Column(name = "transaction_id")
+    private String transactionId;
+    
+    @Column(name = "transaction_status")
+    private String transactionStatus;
+    
+    @Column(name = "refund_status")
+    private boolean refundStatus;
+    
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy HH:mm:ss")
+    @Column(name = "created_date_time")
+    private LocalDateTime createdDateTime;
+}

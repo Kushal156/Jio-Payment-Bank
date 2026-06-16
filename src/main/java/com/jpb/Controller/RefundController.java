@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.jpb.DTO.CustomerInputRequestDTO;
 import com.jpb.Service.RefundService;
+import com.jpb.ServiceImpl.TestService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -20,6 +21,9 @@ public class RefundController {
 
 	@Autowired
 	RefundService service;
+	
+	@Autowired
+	TestService testservice;
 	
 	@PostMapping("/voucher-verify")
 	public ResponseEntity<?> voucherVerify(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest){

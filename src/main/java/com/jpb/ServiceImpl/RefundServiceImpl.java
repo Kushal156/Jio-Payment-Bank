@@ -1,6 +1,8 @@
 package com.jpb.ServiceImpl;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -38,12 +40,16 @@ import com.jpb.Entity.CustomerRefundApiLogEntity;
 import com.jpb.Entity.CustomerRefundHistoryEntity;
 import com.jpb.Entity.CustomerRefundMasterEntity;
 import com.jpb.Entity.DebitTransactionEntity;
+import com.jpb.Entity.ResendVocuherMasterEntity;
+import com.jpb.Entity.ResendVoucherHistoryEntity;
 import com.jpb.Repository.AgentMasterRepository;
 import com.jpb.Repository.CreditTransactionRepository;
 import com.jpb.Repository.CustomerMasterRepository;
 import com.jpb.Repository.CustomerRefundApiLogRepository;
 import com.jpb.Repository.CustomerRefundHistoryRepository;
 import com.jpb.Repository.CustomerRefundMasterRepository;
+import com.jpb.Repository.ResendVoucherHistoryRepository;
+import com.jpb.Repository.ResendVoucherMasterRepository;
 import com.jpb.Service.RefundService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -111,6 +117,12 @@ public class RefundServiceImpl implements RefundService {
 	
 	@Autowired
 	CreditTransactionRepository creditRepo;
+	
+	@Autowired
+	ResendVoucherMasterRepository resendMasterRepo;
+	
+	@Autowired
+	ResendVoucherHistoryRepository resendHistoryRepo;
 
 	// Voucher Verify
 	@Override
@@ -515,7 +527,7 @@ public class RefundServiceImpl implements RefundService {
 					refundMaster.setStage(3);
 					refundMaster.setJioTransactionId(responseVoucher.getTransactionId());
 					refundMaster.setVoucherStatus(responseVoucher.getVoucherStatus());
-					//refundMaster.setRejectReason(finalResponse.getData().getApplicationStatusReasonDescription());;
+					//refundMaster.setRejectReason(finalResponse.getData().getApplicationStatusReasonDescription());
 					
 					history.setRemarks("Voucher Code Redeemed");
 					
@@ -600,15 +612,11 @@ public class RefundServiceImpl implements RefundService {
 
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
-		Integer masterId = null; // Refund Table ID
-		Integer customerMasterId = null; // Customer Master Table ID
-		String mainRefNo = null; // Customer table ExternalRefNo
 		CustomerMasterEntity master = null;
-		CustomerRefundMasterEntity refundMaster = new CustomerRefundMasterEntity();
-		CustomerRefundHistoryEntity history = new CustomerRefundHistoryEntity();
+		ResendVoucherHistoryEntity resendhistory = new ResendVoucherHistoryEntity();
 		RefundResponseDTO finalResponse = new RefundResponseDTO();
 		ErrorDetails error = new ErrorDetails();
-
+		String customerRefNo = null; //failed customer ExternalRefNo
 		try {
 
 			log.info("Voucher Resend Request from Customer :: {}", input.toString());
@@ -662,7 +670,17 @@ public class RefundServiceImpl implements RefundService {
 
 			// Voucher
 			VoucherDetailsDTO voucher = new VoucherDetailsDTO();
-			voucher.setVoucherOrn(input.getVoucherCode());
+			
+			//ExternalRefNum of the failed Customer
+			Optional<CustomerMasterEntity> failedCustomersEntity = masterRepo.findFailedCustomerRefNo(input.getMobileNumber(),
+					Arrays.asList("COMPLETED"), Arrays.asList("Voucher_Create"));
+			
+			if(failedCustomersEntity.isPresent()) {
+				master = failedCustomersEntity.get();
+				customerRefNo = master.getExternalAppRefNumber();
+				log.info("Failed Customer ExternalRefNo :: {}", customerRefNo);
+			}
+			voucher.setVoucherOrn(customerRefNo);
 			request.setVoucherDetails(List.of(voucher));
 			
 			log.info("JSON Request for Resend Customer Refund Voucher Code :: {}", mapper.writeValueAsString(request));
@@ -675,6 +693,61 @@ public class RefundServiceImpl implements RefundService {
 			ResponseEntity<String> response = null;
 			String responseBody = null;
 			Integer statusCode = null;
+			
+			Optional<ResendVocuherMasterEntity> masterOpt = resendMasterRepo.findByMobileNo(input.getMobileNumber());
+
+			LocalDate today = LocalDate.now();
+			ResendVocuherMasterEntity masterRecord;
+
+			// Create Master Record if not exists
+			if (masterOpt.isEmpty()) {
+
+			    masterRecord = new ResendVocuherMasterEntity();
+
+			    masterRecord.setMobileNo(input.getMobileNumber());
+			    masterRecord.setJioAgentId(agentId);
+			    masterRecord.setVkid(input.getVkid());
+			    masterRecord.setDailyAttemptCount(0);
+			    masterRecord.setTotalAttemptCount(0);
+			    masterRecord.setLastAttemptDate(today);
+			    masterRecord.setCreatedDateTime(LocalDateTime.now());
+			    masterRecord.setUpdatedDateTime(LocalDateTime.now());
+
+			    masterRecord = resendMasterRepo.save(masterRecord);
+
+			    log.info("Master Record Created Successfully. Id : {}", masterRecord.getId());
+
+			} else {
+
+			    masterRecord = masterOpt.get();
+			}
+
+			// Overall Success Limit
+			if (masterRecord.getTotalAttemptCount() != null
+			        && masterRecord.getTotalAttemptCount() >= 10) {
+
+			    error.setCode("OVERALL_LIMIT");
+			    error.setMessage("Maximum 10 successful resend attempts allowed.");
+
+			    finalResponse.setStatus("FAILED");
+			    finalResponse.setError(error);
+
+			    return ResponseEntity.ok(finalResponse);
+			}
+
+			// Daily Success Limit
+			if (today.equals(masterRecord.getLastAttemptDate())
+			        && masterRecord.getDailyAttemptCount() != null
+			        && masterRecord.getDailyAttemptCount() >= 3) {
+
+			    error.setCode("DAILY_LIMIT");
+			    error.setMessage("Maximum 3 successful resend attempts allowed per day.");
+
+			    finalResponse.setStatus("FAILED");
+			    finalResponse.setError(error);
+
+			    return ResponseEntity.ok(finalResponse);
+			}
 
 			try {
 				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
@@ -715,10 +788,88 @@ public class RefundServiceImpl implements RefundService {
 			}
 
 			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
-					? "No Error Msg"
-					: finalResponse.getError().getMessage();
+					? "No Error Msg" : finalResponse.getError().getMessage();
 			
-			return ResponseEntity.ok(response.getBody());
+			// SAVE MASTER + HISTORY
+			try {
+
+			    // Save history for every attempt
+			    resendhistory.setMobileNo(input.getMobileNumber());
+			    resendhistory.setExternalAppRefNumber(externalRefNo);
+			    resendhistory.setApplicationNumber(finalResponse.getApplicationNumber());
+			    resendhistory.setStatus(finalResponse.getStatus());
+			    resendhistory.setRequestPayload(mapper.writeValueAsString(request));
+			    resendhistory.setResponsePayload(responseBody);
+			    resendhistory.setCreatedDateTime(LocalDateTime.now());
+			    resendhistory.setMasterId(masterRecord.getId());
+			    resendhistory.setVkid(input.getVkid());
+			    resendhistory.setCustomerExternalAppRefNumber(customerRefNo);
+			    resendhistory.setActionType(request.getAction().getType());
+			    resendhistory.setActionSubType(request.getAction().getSubType());
+			    resendhistory.setApplicationType(applicationType);
+			    resendhistory.setApplicationSubType("Refund");
+			    resendhistory.setChannelId(channelId);
+			    resendhistory.setOrganizationName(channelId);
+			    resendhistory.setLatitude(input.getLatitude());
+			    resendhistory.setLongitude(input.getLongitude());
+			    
+			    if(finalResponse.getNextAction() != null) {
+			    	resendhistory.setNextActionType(finalResponse.getNextAction().getType());
+			    	resendhistory.setNextActionSubType(finalResponse.getNextAction().getSubType());
+			    }
+			    
+			    resendHistoryRepo.save(resendhistory);
+
+			} catch (Exception e) {
+			    log.error("Error while saving resend history", e);
+			}
+
+			// UPDATE MASTER FOR SUCCESS
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+
+			    if (masterOpt.isPresent()) {
+
+			        masterRecord = masterOpt.get();
+
+			        // Same Day
+			        if (today.equals(masterRecord.getLastAttemptDate())) {
+
+			            Integer dailyCount = masterRecord.getDailyAttemptCount() == null
+			                    ? 0 : masterRecord.getDailyAttemptCount();
+
+			            masterRecord.setDailyAttemptCount(dailyCount + 1);
+
+			        } else {
+
+			            // New Day
+			            masterRecord.setDailyAttemptCount(1);
+			            masterRecord.setLastAttemptDate(today);
+			        }
+
+			        Integer totalCount = masterRecord.getTotalAttemptCount() == null
+			                ? 0 : masterRecord.getTotalAttemptCount();
+
+			        masterRecord.setTotalAttemptCount(totalCount + 1);
+			        masterRecord.setUpdatedDateTime(LocalDateTime.now());
+
+			    } else {
+
+			        masterRecord = new ResendVocuherMasterEntity();
+			        
+			        masterRecord.setMobileNo(input.getMobileNumber());
+			        masterRecord.setJioAgentId(agentId);
+			        masterRecord.setVkid(input.getVkid());
+			        masterRecord.setDailyAttemptCount(1);
+			        masterRecord.setTotalAttemptCount(1);
+			        masterRecord.setLastAttemptDate(today);
+			        masterRecord.setCreatedDateTime(LocalDateTime.now());
+			        masterRecord.setUpdatedDateTime(LocalDateTime.now());
+			    }
+
+			    resendMasterRepo.save(masterRecord);
+			}
+			
+			return ResponseEntity.ok(finalResponse);
 			
 		} catch (Exception e) {
 			log.error("Refund Voucher Resend Exception", e);
@@ -731,6 +882,7 @@ public class RefundServiceImpl implements RefundService {
 			return ResponseEntity.ok(finalResponse);
 		}
 	}
+	
 
 	// ORN Search failed for Customer
 	@Override

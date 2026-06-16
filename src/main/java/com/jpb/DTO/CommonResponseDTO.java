@@ -34,4 +34,7 @@ public class CommonResponseDTO {
 	private String stateName;
 	private String cityName;
 	
+	//Customer List Details
+	private Object customer;
+	
 }

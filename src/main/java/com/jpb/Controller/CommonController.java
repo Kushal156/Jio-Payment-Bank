@@ -55,6 +55,11 @@ public class CommonController {
 		return service.verifyAgentOTP(request, httpRequest);
 	}
 	
+	@PostMapping("/customer-details")
+	public ResponseEntity<?> customerDetails(@RequestBody CustomerInputRequestDTO request) {
+		return service.customerDetails(request);
+	}
+	
 	@GetMapping("/check-cache")
 	public String checkCache() {
 

@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,10 +31,14 @@ import com.jpb.DTO.CustomerInputRequestDTO;
 import com.jpb.DTO.ErrorDetails;
 import com.jpb.DTO.GetConsentDTO;
 import com.jpb.Entity.AgentMasterEntity;
+import com.jpb.Entity.CustomerListEntity;
 import com.jpb.Entity.CustomerMasterEntity;
 import com.jpb.Repository.AgentMasterRepository;
+import com.jpb.Repository.CustomerListRepository;
+import com.jpb.Repository.CustomerMasterRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -71,6 +76,12 @@ public class SchedulerServiceImpl {
 
 	@Autowired
 	AgentMasterRepository agentRepo;
+	
+	@Autowired
+	CustomerMasterRepository customerRepo;
+	
+	@Autowired
+	CustomerListRepository customerList;
 
 	public static ConcurrentHashMap<String, String> otpStore = new ConcurrentHashMap<>();
 
@@ -325,6 +336,11 @@ public class SchedulerServiceImpl {
 				AgentMasterEntity agent = agentEntity.get();
 				mobileNumber = agent.getMobileNumber();
 				log.info("Agent Master Details for the VKID :: {}, Mobile Number :: {}", input.getVkid(), mobileNumber);
+			} else {
+				response.setStatus("FAILURE");
+				response.setMessage(input.getVkid() + ", is not Eligible for Customer Onboarding");
+				log.info("Agent is not Onboarded as of now !!");
+				return ResponseEntity.ok(response);
 			}
 
 			String key = mobileNumber;
@@ -364,6 +380,11 @@ public class SchedulerServiceImpl {
 				AgentMasterEntity agent = agentEntity.get();
 				mobileNumber = agent.getMobileNumber();
 				log.info("Agent Master Details for the VKID :: {}, Mobile Number :: {}", input.getVkid(), mobileNumber);
+			} else {
+				response.setStatus("FAILURE");
+				response.setMessage(input.getVkid() + ", is not Eligible for Customer Onboarding");
+				log.info("Agent is not Onboarded as of now !!");
+				return ResponseEntity.ok(response);
 			}
 
 			String key = mobileNumber;
@@ -382,6 +403,34 @@ public class SchedulerServiceImpl {
 			log.error("SMS Verify Error Exception", e);
 			response.setStatus("FAILURE");
 			response.setMessage("Something went wrong in Verify OTP Service");
+		}
+		return ResponseEntity.ok(response);
+	}
+
+	// Customer Details List for grid views
+	@Transactional
+	public ResponseEntity<?> customerDetails(CustomerInputRequestDTO request) {
+		CommonResponseDTO response = new CommonResponseDTO();
+		ObjectMapper mapper = new ObjectMapper();
+		log.info("Customer Details Request :: {}", mapper.writeValueAsString(request));
+		
+		try {
+			
+			List<CustomerListEntity> records = customerList.customerList(request.getVkid());
+			if (records == null || records.isEmpty()) {
+	            response.setStatus("FAILURE");
+	            response.setMessage("No customer details found");
+	            return ResponseEntity.ok(response);
+	        }
+
+	        response.setStatus("SUCCESS");
+	        response.setMessage("Customer Details Fetched Successfully");
+	        response.setCustomer(records);
+			
+		} catch (Exception e) {
+			log.error("Customer Details Exception", e);
+			response.setStatus("FAILURE");
+			response.setMessage("Something went wrong in fetching customer Details");
 		}
 		return ResponseEntity.ok(response);
 	}

@@ -32,6 +32,7 @@ import com.jpb.DTO.AddOnDTO;
 import com.jpb.DTO.AddressDTO;
 import com.jpb.DTO.AgentInfoResponseDTO;
 import com.jpb.DTO.ApplicationStatusResponseDTO;
+import com.jpb.DTO.AuthenticateEkycDTO;
 import com.jpb.DTO.BCDetailsDTO;
 import com.jpb.DTO.ContactDetailsDTO;
 import com.jpb.DTO.CustomerCommonRequestDTO;
@@ -49,15 +50,23 @@ import com.jpb.DTO.PersonDTO;
 import com.jpb.DTO.PersonalDetailsDTO;
 import com.jpb.DTO.ProductDTO;
 import com.jpb.DTO.RecallApplicationRequestDTO;
+import com.jpb.DTO.RefundCommonRequest;
+import com.jpb.DTO.RefundDataDTO;
+import com.jpb.DTO.RefundResponseDTO;
 import com.jpb.DTO.ResendOtpResponseDTO;
 import com.jpb.DTO.SubmitApplicationRequstDTO;
 import com.jpb.DTO.SubmitApplicationResponseDTO;
+import com.jpb.DTO.VoucherDetailsDTO;
 import com.jpb.Entity.AgentMasterEntity;
 import com.jpb.Entity.CustomerApiLogEntity;
 import com.jpb.Entity.CustomerHistoryEntity;
 import com.jpb.Entity.CustomerMasterEntity;
+import com.jpb.Entity.CustomerRefundApiLogEntity;
+import com.jpb.Entity.CustomerRefundHistoryEntity;
+import com.jpb.Entity.CustomerRefundMasterEntity;
 import com.jpb.Entity.DebitTransactionEntity;
 import com.jpb.Repository.AgentMasterRepository;
+import com.jpb.Repository.CreditTransactionRepository;
 import com.jpb.Repository.CustomerApiLogRepository;
 import com.jpb.Repository.CustomerHistoryRepository;
 import com.jpb.Repository.CustomerMasterRepository;
@@ -114,6 +123,21 @@ public class TestService {
 	
 	@Value("${applicationStatusURL}")
 	private String applicationStatusURL;
+	
+	@Value("${serviceID}")
+	private String serviceID;
+
+	@Value("${SubServiceID}")
+	private String subServiceID;
+
+	@Value("${virtual.SubSubServiceID}")
+	private String virtualSubSubServiceID;
+
+	@Value("${physical.SubSubServiceID}")
+	private String physicalSubSubServiceID;
+	
+	@Value("${walletID}")
+	private String walletID;
 
 	@Autowired
 	TokenManager tokenManager;
@@ -141,6 +165,164 @@ public class TestService {
 
 	@Autowired
 	DebitTransactionRepository debitRepo;
+	
+	@Autowired
+	CreditTransactionRepository creditRepo;
+	
+	//Voucher Redeem Mocked
+	public ResponseEntity<?> voucherRedeem(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		log.info("Voucher Redeem Request from Customer :: {}", input.toString());
+
+		ObjectMapper mapper = new ObjectMapper();
+		String agentId = null;
+		Integer refundMasterId = null;
+		CustomerMasterEntity master = null;
+		CustomerRefundMasterEntity refundMaster = new CustomerRefundMasterEntity();
+		CustomerRefundHistoryEntity history = new CustomerRefundHistoryEntity();
+		RefundResponseDTO finalResponse = new RefundResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+		String vakTransactionId = null;
+		Double amount = 0.00;
+
+		log.info("JSON Request from Customer for Voucher Redeem :: {}", mapper.writeValueAsString(input));
+		String base64String = util.convertPidXmlToBase64Json(input.getBioMetricData());
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			agentId = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid()).map(agent -> {
+				log.info("Agent Master Details for VKID {} :: {}", input.getVkid(), agent);
+				return agent.getJioAgentId();
+			}).orElse(null);
+
+			// Request
+			RefundCommonRequest request = new RefundCommonRequest();
+			request.setExternalAppRefNumber(input.getExternalAppRefNumber());
+			request.setApplicationNumber(input.getApplicationNumber());
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType("Refund");
+			request.setInitiatingEntityId(channelId);
+
+			// Action
+			ActionDTO action = new ActionDTO();
+			action.setType("VOUCHER");
+			action.setSubType("REDEEM");
+			request.setAction(action);
+
+			// BC Details
+			BCDetailsDTO bc = new BCDetailsDTO();
+			bc.setUserId(agentId);
+			request.setBcDetails(bc);
+
+			// Authenticate List
+			AuthenticateEkycDTO authenticate = new AuthenticateEkycDTO();
+			authenticate.setValue(base64String);
+			request.setAuthenticateList(Collections.singletonList(authenticate));
+
+			// Consents
+			Optional.ofNullable(input.getConsents()).ifPresent(con -> {
+				request.setConsents(con);
+			});
+
+			log.info("JSON Request for Redeem Voucher :: {}", mapper.writeValueAsString(request));
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<RefundCommonRequest> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+				responseBody = """ 
+							{
+							  "applicationNumber": "7245JPBV78152871439119367",
+							  "data": {
+							    "persons": [
+							      {
+							        "aadhaar": {
+							          "value": "01001255ESUXhKglTPUkG5QvpEIa4Zdt18n9/ZZoFEyi48xIxOT62WbbL9HtKdju+igGd7KU"
+							        },
+							        "blacklisted": false,
+							        "contactDetails": [
+							          {
+							            "mobileNumber": "6150680001"
+							          }
+							        ],
+							        "existingPerson": false,
+							        "pepFlag": false,
+							        "personalDetails": {
+							          "firstName": "Sai",
+							          "lastName": "Bangera",
+							          "middleName": "Vinayak Shekhar"
+							        }
+							      }
+							    ],
+							    "voucherDetails": [
+							      {
+							        "netAmount": "400.0",
+							        "voucherOrn": "7245JPBV78152029674385354",
+							        "voucherStatus": "SUCCESS"
+							      }
+							    ]
+							  },
+							  "externalAppRefNumber": "JPBV781528714391",
+							  "nextAction": {
+							    "subType": "REDEEM",
+							    "type": "VOUCHER"
+							  },
+							  "status": "SUCCESS"
+							}
+						""";
+
+
+			} catch (HttpStatusCodeException ex) {
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			VoucherDetailsDTO responseVoucher = Optional.ofNullable(finalResponse.getData())
+							.map(RefundDataDTO::getVoucherDetails)
+							.filter(list -> !list.isEmpty())
+							.map(list -> list.get(0))
+							.orElse(null);
+					
+					String CardSubSubServiceId = 100 == amount ? virtualSubSubServiceID : physicalSubSubServiceID;
+					
+					//Wallet Reversal For Franchise
+					DebitTransactionEntity credit = creditRepo.creditTransaction(
+						vakTransactionId, "Refund for Voucher Redemption",serviceID, subServiceID, 
+						CardSubSubServiceId, input.getVkid(), walletID, amount);
+					
+					String refundStatus = credit.getUpdateStatus();
+					
+					log.info("Credit Status :: {}, Refund Status :: {}", credit.toString(), refundStatus);
+					
+					if("Y".equalsIgnoreCase(refundStatus)) {
+						log.info("Refund Successful---->");
+					} else {
+						log.info("Refund Pending---->");
+					}
+	
+			return ResponseEntity.ok(finalResponse);
+		}
 	
 	// Get Consents Mocked
 	public ResponseEntity<?> getConsents(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
