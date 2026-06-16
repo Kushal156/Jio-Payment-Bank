@@ -444,7 +444,7 @@ public class RefundServiceImpl implements RefundService {
 
 			try {
 				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
-				log.info("Redeem Voucher Verify Raw Response :: {}", response.getBody());
+				log.info("Redeem Voucher Raw Response :: {}", response.getBody());
 				responseBody = response.getBody();
 				statusCode = response.getStatusCode().value();
 
@@ -515,7 +515,7 @@ public class RefundServiceImpl implements RefundService {
 					refundMaster.setStage(3);
 					refundMaster.setJioTransactionId(responseVoucher.getTransactionId());
 					refundMaster.setVoucherStatus(responseVoucher.getVoucherStatus());
-					refundMaster.setRejectReason(finalResponse.getData().getApplicationStatusReasonDescription());;
+					//refundMaster.setRejectReason(finalResponse.getData().getApplicationStatusReasonDescription());;
 					
 					history.setRemarks("Voucher Code Redeemed");
 					
@@ -539,9 +539,13 @@ public class RefundServiceImpl implements RefundService {
 					
 				} else {
 					// Failure Case
-					refundMaster.setNextActionType(finalResponse.getNextAction().getType());
-					refundMaster.setNextActionSubType(finalResponse.getNextAction().getSubType());
-					
+					if(finalResponse.getNextAction() != null ) {
+						refundMaster.setNextActionType(finalResponse.getNextAction().getType());
+						refundMaster.setNextActionSubType(finalResponse.getNextAction().getSubType());
+					}else {
+						refundMaster.setNextActionType(null);
+						refundMaster.setNextActionSubType(null);
+					}
 					history.setRemarks("Voucher Code Redemption Pending");
 				}
 			}

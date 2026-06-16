@@ -36,7 +36,7 @@ public class CustomerHistoryEntity {
 	@Column(name = "status", length = 20)
 	private String status;
 
-	@Column(name = "remarks", length = 50)
+	@Column(name = "remarks")
 	private String remarks;
 
 	@Column(name = "action_type", length = 20)
