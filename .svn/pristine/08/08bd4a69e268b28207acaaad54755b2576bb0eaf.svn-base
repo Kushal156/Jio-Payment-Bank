@@ -285,7 +285,7 @@ public class RefundServiceImpl implements RefundService {
 				String amount = responseVoucher != null ? responseVoucher.getNetAmount() : null;
 				
 				log.info("Voucher ORN :: {}, Amount :: {}", voucherORN, amount);
-				
+
 				refundMaster.setAmount(amount);
 
 				Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumber(voucherORN);
@@ -302,11 +302,6 @@ public class RefundServiceImpl implements RefundService {
 					master = masterEntity.get();
 					customerMasterId = master.getId();
 					log.info("VKID :: {}, row :: {}", input.getVkid(), customerMasterId);
-					
-					log.info("Swapping Values of Customer RefNo with externalRefNo --------->");
-					finalResponse.setExternalAppRefNumber(master.getExternalAppRefNumber());
-					log.info("Swapped Values: ExternalRefNo :: {}, with Voucher ORN :: {}", 
-							finalResponse.getExternalAppRefNumber(), master.getExternalAppRefNumber());
 
 					refundMaster.setMasterExternalAppRefNumber(master.getApplicationNumber());
 					refundMaster.setMasterId(masterId);
@@ -396,7 +391,6 @@ public class RefundServiceImpl implements RefundService {
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
 		Integer refundMasterId = null;
-		CustomerMasterEntity customerMaster = new CustomerMasterEntity();
 		CustomerRefundMasterEntity refundMaster = new CustomerRefundMasterEntity();
 		CustomerRefundHistoryEntity history = new CustomerRefundHistoryEntity();
 		RefundResponseDTO finalResponse = new RefundResponseDTO();

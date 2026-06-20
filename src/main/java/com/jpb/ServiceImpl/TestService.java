@@ -725,17 +725,24 @@ public class TestService {
 		    }
 	}
 	
-	//Customer Application Status BKP
+	//Customer Application Status Mocked
 	public ResponseEntity<?> applicationStatus(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
 
 		log.info("Application Status Request from Customer :: {}", input.toString());
 		ObjectMapper mapper = new ObjectMapper();
-
+		CustomerMasterEntity customers = new CustomerMasterEntity();
 		CustomerCommonRequestDTO finalRequest = new CustomerCommonRequestDTO();
 		ApplicationStatusResponseDTO finalResponse = new ApplicationStatusResponseDTO();
 		ErrorDetails error = new ErrorDetails();
 		try {
 
+			Optional<CustomerMasterEntity> records = masterRepo.findByExternalAppRefNumber(input.getExternalAppRefNumber());
+			log.info("Records :: {}", records.toString());
+			
+			if(records.isPresent()) {
+				customers = records.get();
+			}
+			
 			// Token
 			if (!tokenManager.isAccessTokenValid()) {
 				log.info("Token expired → generating new token");
@@ -744,8 +751,6 @@ public class TestService {
 
 			finalRequest.setExternalAppRefNumber(input.getExternalAppRefNumber());
 			finalRequest.setInitiatingEntityId(channelId);
-
-			log.info("JSON Request for Application Status :: {}", mapper.writeValueAsString(finalRequest));
 
 			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
 					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
@@ -757,10 +762,23 @@ public class TestService {
 			Integer statusCode = null;
 
 			try {
-				response = rest.exchange(applicationStatusURL, HttpMethod.POST, entity, String.class);
-				log.info("Application Status Raw Response :: {}", response.getBody());
-				responseBody = response.getBody();
-				statusCode = response.getStatusCode().value();
+				
+				responseBody = """ 
+							{
+							  "externalAppRefNumber": "JPBV781593972226",
+							  "applicationNumber": "7245JPBV78159397222615849",
+							  "status": "SUCCESS",
+							  "data": {
+							    "applicationStage": "APPLICATION_SUBMIT",
+							    "applicationStatus": "REJECTED",
+							    "createdAt": "2026-06-16T18:55:05.88214",
+							    "createdBy": "7245",
+							    "updatedAt": "2026-06-16T19:08:58.927486",
+							    "updatedBy": "7245"
+							  }
+							}
+						""";
+				statusCode = 200;
 
 			} catch (HttpStatusCodeException ex) {
 				statusCode = ex.getStatusCode().value();
@@ -776,11 +794,28 @@ public class TestService {
 				statusCode = 500;
 				responseBody = "Unexpected error: " + ex.getMessage();
 				log.error("API failure", ex);
+				log.error("JSON Parse Exception", ex);
 			}
-
+			
+			log.info("Mock Response Before Parse :: {}", responseBody);
+			
 			if (statusCode != null && statusCode == 200 && responseBody != null) {
 				try {
 					finalResponse = mapper.readValue(responseBody, ApplicationStatusResponseDTO.class);
+					
+					//Success
+					if("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+						
+						customers.setJioStatus(finalResponse.getData().getApplicationStatus());								
+						customers.setJioStage(finalResponse.getData().getApplicationStage());
+						masterRepo.save(customers);
+					} else {
+						
+						customers.setJioStatus("NOT FOUND");
+						customers.setJioStage("Record Not Present");
+						masterRepo.save(customers);
+					}
+					
 				} catch (Exception e) {
 					error.setCode("500");
 					error.setMessage("Response parsing failed");

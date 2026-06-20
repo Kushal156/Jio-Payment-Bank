@@ -83,9 +83,6 @@ import java.time.LocalDateTime;
 @Slf4j
 public class CustomerServiceImpl implements CustomerService {
 
-	@Value("${LatLongKey}")
-	private String LatLongKey;
-	
 	@Value("${generateOtpURL}")
 	private String URL;
 
@@ -196,7 +193,6 @@ public class CustomerServiceImpl implements CustomerService {
 		String requestJson = null;
 		String responseJson = null;
 		String agentId = null;
-		Double agentLat = null, agentLong = null;
 		String externalRefNo = null; //"JPBV" + System.currentTimeMillis()
 		String applicationNo = null;
 		Integer masterId = null;
@@ -216,21 +212,11 @@ public class CustomerServiceImpl implements CustomerService {
 			//Dedupe check for duplicate Mobile No & Application No
 			List<CustomerMasterEntity> dedupeCheck = masterRepo.findByMobileNo(input.getMobileNumber());
 			if(!dedupeCheck.isEmpty()) {
-						
+				
 				Optional<CustomerMasterEntity> latestRecord = dedupeCheck.stream()
-				.filter(records ->
-				        !(
-				            "SUBMITTED".equalsIgnoreCase(records.getNextActionType())
-				            &&
-				            "EXIT".equalsIgnoreCase(records.getNextActionSubType())
-				        )
-				        &&
-				        !(
-				            "HARD_EXIT".equalsIgnoreCase(records.getNextActionType())
-				            &&
-				            "RETRY_EXHAUSTED".equalsIgnoreCase(records.getNextActionSubType())
-				        )
-				).max(Comparator.comparing(CustomerMasterEntity::getCreatedDateTime));
+						.filter(records -> (!"SUBMITTED".equalsIgnoreCase(records.getNextActionType())
+											&& (!"EXIT".equalsIgnoreCase(records.getNextActionSubType()))))
+						.max(Comparator.comparing(CustomerMasterEntity::getCreatedDateTime));
 						
 				if(latestRecord.isPresent()) {
 					
@@ -270,6 +256,7 @@ public class CustomerServiceImpl implements CustomerService {
 					    return ResponseEntity.ok(finalResponse);
 					
 				} else {
+//					externalRefNo = "JPBV" + System.currentTimeMillis();
 					externalRefNo = "JPBV" + String.valueOf(System.currentTimeMillis())
 					              .substring(String.valueOf(System.currentTimeMillis()).length() - 12);
 					
@@ -302,23 +289,7 @@ public class CustomerServiceImpl implements CustomerService {
 					masterId = master.getId();
 				}	
 			} else {
-				
-				Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
-				if (agentEntity.isPresent()) {
-					AgentMasterEntity agent = agentEntity.get();
-					agentId = agent.getJioAgentId();
-					agentLat = agent.getLatitude();
-					agentLong = agent.getLongitude();
-					
-					log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-				}
-				
-				if("DB".equalsIgnoreCase(LatLongKey)) {
-					input.setLatitude(agentLat.toString());
-					input.setLongitude(agentLong.toString());
-					log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				}
-				
+//				externalRefNo = "JPBV" + System.currentTimeMillis();
 				externalRefNo = "JPBV" + String.valueOf(System.currentTimeMillis())
 				              .substring(String.valueOf(System.currentTimeMillis()).length() - 12);
 				
@@ -349,6 +320,13 @@ public class CustomerServiceImpl implements CustomerService {
 				
 				master = masterRepo.save(master);
 				masterId = master.getId();
+			}
+
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
 			}
 
 			// Token
@@ -543,7 +521,6 @@ public class CustomerServiceImpl implements CustomerService {
 		log.info("Verify OTP Request :: {}", input.toString());
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
-		Double agentLat = null, agentLong = null;
 		Integer masterId = null;
 		CustomerMasterEntity master = null;
 		VerifyOtpResponseDTO finalResponse = new VerifyOtpResponseDTO();
@@ -554,15 +531,7 @@ public class CustomerServiceImpl implements CustomerService {
 			if (agentEntity.isPresent()) {
 				AgentMasterEntity agent = agentEntity.get();
 				agentId = agent.getJioAgentId();
-				agentLat = agent.getLatitude();
-				agentLong = agent.getLongitude();
 				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-			}
-			
-			if("DB".equalsIgnoreCase(LatLongKey)) {
-				input.setLatitude(agentLat.toString());
-				input.setLongitude(agentLong.toString());
-				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
 			}
 
 			String publicKey = new String(Files.readAllBytes(Paths.get(keyPath))).trim();
@@ -766,7 +735,6 @@ public class CustomerServiceImpl implements CustomerService {
 		log.info("Resend OTP Request From Customer :: {}", input.toString());
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
-		Double agentLat = null, agentLong = null;
 		Integer masterId = null;
 		CustomerMasterEntity master = null;
 		ResendOtpResponseDTO finalResponse = new ResendOtpResponseDTO();
@@ -777,15 +745,7 @@ public class CustomerServiceImpl implements CustomerService {
 			if (agentEntity.isPresent()) {
 				AgentMasterEntity agent = agentEntity.get();
 				agentId = agent.getJioAgentId();
-				agentLat = agent.getLatitude();
-				agentLong = agent.getLongitude();
 				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-			}
-			
-			if("DB".equalsIgnoreCase(LatLongKey)) {
-				input.setLatitude(agentLat.toString());
-				input.setLongitude(agentLong.toString());
-				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
 			}
 
 			// Token
@@ -961,7 +921,6 @@ public class CustomerServiceImpl implements CustomerService {
 		log.info("Send Email OTP Request from Customer :: {}", input.toString());
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
-		Double agentLat = null, agentLong = null;
 		Integer masterId = null;
 		CustomerMasterEntity master = null;
 		ErrorDetails error = new ErrorDetails();
@@ -972,15 +931,7 @@ public class CustomerServiceImpl implements CustomerService {
 			if (agentEntity.isPresent()) {
 				AgentMasterEntity agent = agentEntity.get();
 				agentId = agent.getJioAgentId();
-				agentLat = agent.getLatitude();
-				agentLong = agent.getLongitude();
 				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-			}
-			
-			if("DB".equalsIgnoreCase(LatLongKey)) {
-				input.setLatitude(agentLat.toString());
-				input.setLongitude(agentLong.toString());
-				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
 			}
 
 			// Token
@@ -1161,7 +1112,6 @@ public class CustomerServiceImpl implements CustomerService {
 		log.info("Verify Email OTP Request from Customer :: {}", input.toString());
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
-		Double agentLat = null, agentLong = null;
 		Integer masterId = null;
 		CustomerMasterEntity master = null;
 		ErrorDetails error = new ErrorDetails();
@@ -1172,15 +1122,7 @@ public class CustomerServiceImpl implements CustomerService {
 			if (agentEntity.isPresent()) {
 				AgentMasterEntity agent = agentEntity.get();
 				agentId = agent.getJioAgentId();
-				agentLat = agent.getLatitude();
-				agentLong = agent.getLongitude();
 				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-			}
-			
-			if("DB".equalsIgnoreCase(LatLongKey)) {
-				input.setLatitude(agentLat.toString());
-				input.setLongitude(agentLong.toString());
-				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
 			}
 
 			String publicKey = new String(Files.readAllBytes(Paths.get(keyPath))).trim();
@@ -1384,7 +1326,6 @@ public class CustomerServiceImpl implements CustomerService {
 		log.info("Re-Send Email OTP Request from Customer :: {}", input.toString());
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
-		Double agentLat = null, agentLong = null;
 		Integer masterId = null;
 		CustomerMasterEntity master = null;
 		ErrorDetails error = new ErrorDetails();
@@ -1395,15 +1336,7 @@ public class CustomerServiceImpl implements CustomerService {
 			if (agentEntity.isPresent()) {
 				AgentMasterEntity agent = agentEntity.get();
 				agentId = agent.getJioAgentId();
-				agentLat = agent.getLatitude();
-				agentLong = agent.getLongitude();
 				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-			}
-			
-			if("DB".equalsIgnoreCase(LatLongKey)) {
-				input.setLatitude(agentLat.toString());
-				input.setLongitude(agentLong.toString());
-				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
 			}
 
 			// Token
@@ -1581,7 +1514,6 @@ public class CustomerServiceImpl implements CustomerService {
 
 		ObjectMapper mapper = new ObjectMapper();
 		String agentId = null;
-		Double agentLat = null, agentLong = null;
 		Integer masterId = null;
 		CustomerMasterEntity master = null;
 		ErrorDetails error = new ErrorDetails();
@@ -1598,15 +1530,7 @@ public class CustomerServiceImpl implements CustomerService {
 			if (agentEntity.isPresent()) {
 				AgentMasterEntity agent = agentEntity.get();
 				agentId = agent.getJioAgentId();
-				agentLat = agent.getLatitude();
-				agentLong = agent.getLongitude();
 				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-			}
-			
-			if("DB".equalsIgnoreCase(LatLongKey)) {
-				input.setLatitude(agentLat.toString());
-				input.setLongitude(agentLong.toString());
-				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
 			}
 
 			// Token
@@ -1724,6 +1648,7 @@ public class CustomerServiceImpl implements CustomerService {
 				            log.info("Final Address Line2 :: {}", address.getLine2());
 				            log.info("Final Address Line3 :: {}", address.getLine3());
 				        }
+					
 				} catch (Exception e) {
 					error.setCode("500");
 					error.setMessage(finalResponse.getError().getMessage());
@@ -1770,6 +1695,8 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setRequestPayload(mapper.writeValueAsString(request));
 			logEntity.setResponsePayload(response.getBody());
 			logEntity.setStatusCode(response.getStatusCode().value());
+//			logEntity.setResponsePayload(responseBody);
+//			logEntity.setStatusCode(statusCode);
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
@@ -1800,21 +1727,6 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setNextActionType(finalResponse.getNextAction().getType());
 				history.setNextActionSubType(finalResponse.getNextAction().getSubType());
 				history.setRemarks("PAN Aadhaar Verfied");
-			} 
-			else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) && 
-					  finalResponse.getError() != null && 
-					  "LIMIT_EXHAUSTED".equalsIgnoreCase(finalResponse.getError().getCode())) {
-				
-				// Master
-				master.setNextActionType("HARD_EXIT");
-				master.setNextActionSubType("RETRY_EXHAUSTED");
-				master.setStage(8);
-				
-				// History 
-				history.setNextActionType("HARD_EXIT");
-				history.setNextActionSubType("RETRY_EXHAUSTED");
-				history.setRemarks(finalResponse.getError().getMessage());
-				  
 			} else {
 				history.setRemarks("PAN Aadhaar Verfication Pending");
 			}
@@ -1929,7 +1841,6 @@ public class CustomerServiceImpl implements CustomerService {
 		ObjectMapper mapper = new ObjectMapper();
 		ErrorDetails error = new ErrorDetails();
 		String agentId = null;
-		Double agentLat = null, agentLong = null;
 		Integer masterId = null;
 		CustomerMasterEntity master = null;
 		CustomerEAuthResponseDTO finalResponse = new CustomerEAuthResponseDTO();
@@ -1941,15 +1852,7 @@ public class CustomerServiceImpl implements CustomerService {
 			if (agentEntity.isPresent()) {
 				AgentMasterEntity agent = agentEntity.get();
 				agentId = agent.getJioAgentId();
-				agentLat = agent.getLatitude();
-				agentLong = agent.getLongitude();
 				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-			}
-			
-			if("DB".equalsIgnoreCase(LatLongKey)) {
-				input.setLatitude(agentLat.toString());
-				input.setLongitude(agentLong.toString());
-				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
 			}
 			
 			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
@@ -2136,7 +2039,7 @@ public class CustomerServiceImpl implements CustomerService {
 		}
 	}
 	
-	// Customer Application Status Scheduler
+	// Customer Application Status Scehduler
 	@Scheduled(cron = "0 */10 * * * *") //10 min
 	public ResponseEntity<?> applicationStatus() {
 
@@ -2155,7 +2058,7 @@ public class CustomerServiceImpl implements CustomerService {
 //			List<CustomerMasterEntity> records = masterRepo.findByNextActionTypeAndNextActionSubType("SUBMITTED", "EXIT");
 
 			List<CustomerMasterEntity> records = masterRepo.applicationStatusRecords("SUBMITTED", "EXIT",
-					Arrays.asList("IN_PROGRESS, PENDING, FAILED"));
+					Arrays.asList("IN_PROGRESS, PENDING"));
 			
 			if(records.isEmpty()) {
 	    		log.info("No Customers found for Jio Onboarding Status.......");
@@ -2193,7 +2096,7 @@ public class CustomerServiceImpl implements CustomerService {
 					String responseBody = null;
 					Integer statusCode = null;
 					
-					log.info("JSON Request for Application Status :: {}", mapper.writeValueAsString(finalRequest));					
+					log.info("JSON Request for Application Status for ExternalRefNo :: {}, :: {}", externalRefNo, mapper.writeValueAsString(finalRequest));					
 					
 					try {
 						response = rest.exchange(applicationStatusURL, HttpMethod.POST, entity, String.class);
@@ -2265,7 +2168,6 @@ public class CustomerServiceImpl implements CustomerService {
 		log.info("JSON Reqest from Customer Submit Application :: {}", mapper.writeValueAsString(input));
 
 		String agentId = null;
-		Double agentLat = null, agentLong = null;
 		Integer masterId = null;
 		CustomerMasterEntity master = null;
 		ErrorDetails error = new ErrorDetails();
@@ -2313,6 +2215,7 @@ public class CustomerServiceImpl implements CustomerService {
 					    transactionType
 					);
 				
+				
 				// Money Debit----------
 				DebitTransactionEntity debit = debitRepo.debitTransaction
 						(input.getExternalAppRefNumber(), //unique transaction ID
@@ -2347,15 +2250,7 @@ public class CustomerServiceImpl implements CustomerService {
 			if (agentEntity.isPresent()) {
 				AgentMasterEntity agent = agentEntity.get();
 				agentId = agent.getJioAgentId();
-				agentLat = agent.getLatitude();
-				agentLong = agent.getLongitude();
 				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-			}
-			
-			if("DB".equalsIgnoreCase(LatLongKey)) {
-				input.setLatitude(agentLat.toString());
-				input.setLongitude(agentLong.toString());
-				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
 			}
 
 			// Token
