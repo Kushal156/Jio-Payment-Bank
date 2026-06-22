@@ -52,7 +52,6 @@ public class PreOnboardingCheckImpl implements OnboardingCheckService {
 	@Autowired
 	private PreOnboardingStatusRespository statuscheckRepository;
 	
-	
 	@Autowired
 	private VkmsPropertyMasterRepository VkmsPropertyMasterRepos;
 
@@ -70,9 +69,7 @@ public class PreOnboardingCheckImpl implements OnboardingCheckService {
 		log.info("requestlat long::"+request);
 				
 	String vkid = request.getVkid();
-		
 	String latitude = request.getLatitude();
-	
 	String longitude = request.getLongitude();
 	
 	PreOnbordingCommonResponseDto responsenew = new PreOnbordingCommonResponseDto();
@@ -92,14 +89,12 @@ public class PreOnboardingCheckImpl implements OnboardingCheckService {
 			JioOnboardingVklMasterEntity entity1 = vklapplicationno.get();
 
 			vkid = entity1.getApplicationNo();
-
 			vkid = vkid.substring(vkid.length() - 6);
 
 		}
 
 		int vkidnumber = Integer.parseInt(vkid);
 
-		
 		PreOnbordingCommonResponseDto response = new PreOnbordingCommonResponseDto();
 		try {  
 			
@@ -121,8 +116,7 @@ public class PreOnboardingCheckImpl implements OnboardingCheckService {
 		        }
 			 
 			  entity.setLatitude(request.getLatitude());
-
-		        entity.setLongitude(request.getLongitude());
+		      entity.setLongitude(request.getLongitude());
 		    //    entity.setStatus(status);
 		        
 			uploadRepository.save(entity);
@@ -132,10 +126,9 @@ public class PreOnboardingCheckImpl implements OnboardingCheckService {
         	return response;
 		  }catch(Exception e) {
 			  response.setMessage("error while saving lat long ");
-	            response.setStatus(false);
-	        	return response;
+	          response.setStatus(false);
+	          return response;
 		}
-	
 	}
 	
 	@Override
@@ -318,25 +311,13 @@ public class PreOnboardingCheckImpl implements OnboardingCheckService {
 		}
 
 		Double lat = Double.parseDouble(updateinsert.getLatitude());
-
 		Double longi = Double.parseDouble(updateinsert.getLongitude());
 
 		// it is for submit application
 		if (insertupdateid == null ) {
 			
 			log.info("submit application::");
-
-			
 			log.info("inside submit api");
-
-//			if (latitude == null || latitude.isEmpty() || latitude.isBlank() || longitude == null || longitude.isEmpty()
-//					|| longitude.isBlank()) {
-//
-//				responsenew.setMessage("latitude and longitude is empty");
-//				responsenew.setStatus(false);
-//
-//				return responsenew;
-//			}
 
 			Optional<VkmsPropertiesMasterEntity> distancekendra = VkmsPropertyMasterRepos.findByvkmspropertykey(vkmspropertykey);
 			

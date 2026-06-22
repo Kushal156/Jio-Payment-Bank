@@ -321,11 +321,9 @@ public class CustomerServiceImpl implements CustomerService {
 				}
 				
 				if("DB".equalsIgnoreCase(LatLongKey)) {
-					log.info("Generate OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 					input.setLatitude(agentLat.toString());
 					input.setLongitude(agentLong.toString());
 					log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-					log.info("Generate OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				}
 				
 				externalRefNo = "JPBV" + String.valueOf(System.currentTimeMillis())
@@ -572,11 +570,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Verify OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Verify OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			String publicKey = new String(Files.readAllBytes(Paths.get(keyPath))).trim();
@@ -797,11 +793,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Resend OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Resend OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token
@@ -994,11 +988,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Send Email OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Send Email OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token
@@ -1196,11 +1188,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Verify Email OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Verify Email OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			String publicKey = new String(Files.readAllBytes(Paths.get(keyPath))).trim();
@@ -1421,11 +1411,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("ReSend Email OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("ReSend Email OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token
@@ -1626,11 +1614,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Pan Aadhar Verify : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Pan Aadhar Verify : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token
@@ -1971,11 +1957,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Customer E-Auth : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Customer E-Auth : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 			
 			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
@@ -2379,11 +2363,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Final Submit : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Final Submit : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token

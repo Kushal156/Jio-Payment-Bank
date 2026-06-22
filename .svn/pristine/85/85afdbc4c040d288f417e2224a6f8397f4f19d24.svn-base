@@ -230,13 +230,6 @@ public class CustomerServiceImpl implements CustomerService {
 				            &&
 				            "RETRY_EXHAUSTED".equalsIgnoreCase(records.getNextActionSubType())
 				        )
-				        &&
-				        !(
-				        	"HARD_EXIT".equalsIgnoreCase(records.getNextActionType())
-				        	&& 
-				        	"API_DOWN".equalsIgnoreCase(records.getNextActionSubType())
-				        )
-				        
 				).max(Comparator.comparing(CustomerMasterEntity::getCreatedDateTime));
 						
 				if(latestRecord.isPresent()) {
@@ -321,11 +314,9 @@ public class CustomerServiceImpl implements CustomerService {
 				}
 				
 				if("DB".equalsIgnoreCase(LatLongKey)) {
-					log.info("Generate OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 					input.setLatitude(agentLat.toString());
 					input.setLongitude(agentLong.toString());
 					log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-					log.info("Generate OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				}
 				
 				externalRefNo = "JPBV" + String.valueOf(System.currentTimeMillis())
@@ -411,23 +402,21 @@ public class CustomerServiceImpl implements CustomerService {
 			try {
 				response = rest.exchange(URL, HttpMethod.POST, entity, String.class);
 				log.info("JSON Raw Response for Generate OTP :: {}", response.getBody());
-				
-				if(response != null) {
-					responseBody = response.getBody();
-					statusCode = response.getStatusCode().value();
-				}
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
 			} catch (HttpStatusCodeException ex) {
 				
 				statusCode = ex.getStatusCode().value();
 				responseBody = ex.getResponseBodyAsString();
 				log.error("API error: {}, body: {}", statusCode, responseBody);
-//				if (response != null) {
-//				    error.setCode(String.valueOf(response.getStatusCode().value()));
-//				    error.setMessage(response.getBody());
-//				} else {
-//				    error.setCode("500");
-//				    error.setMessage("No response received from API");
-//				}
+				if (response != null) {
+				    error.setCode(String.valueOf(response.getStatusCode().value()));
+				    error.setMessage(response.getBody());
+				} else {
+				    error.setCode("500");
+				    error.setMessage("No response received from API");
+				}
 			
 				finalResponse.setError(error);
 
@@ -441,6 +430,8 @@ public class CustomerServiceImpl implements CustomerService {
 				responseBody = "Unexpected error: " + ex.getMessage();
 				log.error("API failure", ex);
 			}
+
+			responseJson = response.getBody();
 
 			if (statusCode != null && statusCode == 200 && responseBody != null) {
 				try {
@@ -464,7 +455,8 @@ public class CustomerServiceImpl implements CustomerService {
 			if(!resumedJourney) {
 
 			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
-					? "No Error Msg" : finalResponse.getError().getMessage();
+					? "No Error Msg"
+					: finalResponse.getError().getMessage();
 
 			// UPDATE MASTER (Response)
 			master.setStatus(finalResponse.getStatus());
@@ -475,7 +467,7 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setMasterId(masterId);
 			logEntity.setApiName("GENERATE_OTP");
 			logEntity.setRequestPayload(requestJson);
-			logEntity.setResponsePayload(mapper.writeValueAsString(finalResponse));
+			logEntity.setResponsePayload(responseJson);
 			logEntity.setStatusCode(response.getStatusCode().value());
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
@@ -511,11 +503,6 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setRemarks("OTP Received");
 			} else {
 				
-				if(statusCode != null && (statusCode == 500 || statusCode == 408 || statusCode == 503)) {
-					master.setNextActionType("HARD_EXIT");
-					master.setNextActionSubType("API_DOWN");
-				}
-				
 				// Master
 				master.setApplicationNumber(finalResponse.getApplicationNumber());
 				
@@ -532,6 +519,7 @@ public class CustomerServiceImpl implements CustomerService {
 			historyRepo.save(history);
 			
 		  }
+
 			return ResponseEntity.ok(finalResponse);
 
 		} catch (Exception e) {
@@ -572,11 +560,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Verify OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Verify OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			String publicKey = new String(Files.readAllBytes(Paths.get(keyPath))).trim();
@@ -797,11 +783,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Resend OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Resend OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token
@@ -994,11 +978,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Send Email OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Send Email OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token
@@ -1196,11 +1178,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Verify Email OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Verify Email OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			String publicKey = new String(Files.readAllBytes(Paths.get(keyPath))).trim();
@@ -1421,11 +1401,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("ReSend Email OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("ReSend Email OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token
@@ -1626,11 +1604,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Pan Aadhar Verify : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Pan Aadhar Verify : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token
@@ -1971,11 +1947,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Customer E-Auth : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Customer E-Auth : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 			
 			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
@@ -2379,11 +2353,9 @@ public class CustomerServiceImpl implements CustomerService {
 			}
 			
 			if("DB".equalsIgnoreCase(LatLongKey)) {
-				log.info("Final Submit : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 				input.setLatitude(agentLat.toString());
 				input.setLongitude(agentLong.toString());
 				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-				log.info("Final Submit : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
 			}
 
 			// Token
