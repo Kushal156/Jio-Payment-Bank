@@ -60,6 +60,11 @@ public class CommonController {
 		return service.customerDetails(request);
 	}
 	
+	@PostMapping("/GL-Balance")
+	public ResponseEntity<?> balance(@RequestBody CustomerInputRequestDTO request, HttpServletRequest httpRequest){
+		return service.balance(request, httpRequest);
+	}
+	
 	@GetMapping("/check-cache")
 	public String checkCache() {
 

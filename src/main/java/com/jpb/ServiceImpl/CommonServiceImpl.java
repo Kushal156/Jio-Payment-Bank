@@ -435,4 +435,72 @@ public class CommonServiceImpl {
 		return ResponseEntity.ok(response);
 	}
 
+	public ResponseEntity<?> balance(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		
+		String url = "https://sitapig.test.jiobank.in:9402/jpb/exp/v1/app/agent/" + channelId + "/tradingaccount/balance";
+		ObjectMapper mapper = new ObjectMapper();
+		CommonResponseDTO finalResponse = new CommonResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+		ResponseEntity<String> response = null;
+		String responseBody = null;
+		Integer statusCode = null;
+		
+		try {
+			
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				log.info("Token expired → generating new token");
+				auth.generateToken(httpRequest);
+			}
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+			tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<String> entity = new HttpEntity<>(headers);
+
+			try {
+				response = rest.exchange(url, HttpMethod.GET, entity, String.class);
+				log.info("JSON Raw Response for GL Balance :: {}", response.getBody());
+				responseBody = response.getBody();
+				statusCode = response.getStatusCode().value();
+
+			} catch (HttpStatusCodeException ex) {
+
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error status: {}, body: {}", statusCode, responseBody);
+
+			} catch (ResourceAccessException ex) {
+
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("Timeout occurred", ex);
+
+			} catch (Exception ex) {
+
+				statusCode = 500;
+				responseBody = "Internal error: " + ex.getMessage();
+				log.error("Unexpected error", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				finalResponse = mapper.readValue(responseBody, CommonResponseDTO.class);
+			} else {
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setError(error);
+			}
+
+			return ResponseEntity.ok(response.getBody());
+			
+		} catch(Exception e) {
+			log.error("Error in Fetching GL Balance ", e);
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}		
+	}
+
 }

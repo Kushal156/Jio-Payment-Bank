@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -213,9 +214,41 @@ public class CustomerServiceImpl implements CustomerService {
 				return ResponseEntity.ok(finalResponse);
 			}
 			
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				agentLat = agent.getLatitude();
+				agentLong = agent.getLongitude();
+				
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+			
+			if("DB".equalsIgnoreCase(LatLongKey)) {
+				log.info("Generate OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
+				input.setLatitude(agentLat.toString());
+				input.setLongitude(agentLong.toString());
+				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
+				log.info("Generate OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
+			}
+			
 			//Dedupe check for duplicate Mobile No & Application No
 			List<CustomerMasterEntity> dedupeCheck = masterRepo.findByMobileNo(input.getMobileNumber());
 			if(!dedupeCheck.isEmpty()) {
+				
+				Set<String> excludedHardExitSubTypes = Set.of(
+				        "RETRY_EXHAUSTED",
+				        "API_DOWN",
+				        "ACC_EXISTS",
+				        "DUPLICATE_REQUEST",
+				        "AGENT_INACTIVE",
+				        "INVALID_AGENT",
+				        "AGENT_INFO_ERROR",
+				        "OUTSIDE_RADIUS",
+				        "ELIGIBILITY_FAILED",
+				        "OTP_FAILURE",
+				        "MATCH_FOUND"
+				);
 						
 				Optional<CustomerMasterEntity> latestRecord = dedupeCheck.stream()
 				.filter(records ->
@@ -225,18 +258,10 @@ public class CustomerServiceImpl implements CustomerService {
 				            "EXIT".equalsIgnoreCase(records.getNextActionSubType())
 				        )
 				        &&
-				        !(
-				            "HARD_EXIT".equalsIgnoreCase(records.getNextActionType())
-				            &&
-				            "RETRY_EXHAUSTED".equalsIgnoreCase(records.getNextActionSubType())
-				        )
-				        &&
-				        !(
-				        	"HARD_EXIT".equalsIgnoreCase(records.getNextActionType())
-				        	&& 
-				        	"API_DOWN".equalsIgnoreCase(records.getNextActionSubType())
-				        )
-				        
+		                !(
+		                    "HARD_EXIT".equalsIgnoreCase(records.getNextActionType())
+		                    && excludedHardExitSubTypes.contains(records.getNextActionSubType().toUpperCase())
+		                 )
 				).max(Comparator.comparing(CustomerMasterEntity::getCreatedDateTime));
 						
 				if(latestRecord.isPresent()) {
@@ -309,24 +334,6 @@ public class CustomerServiceImpl implements CustomerService {
 					masterId = master.getId();
 				}	
 			} else {
-				
-				Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
-				if (agentEntity.isPresent()) {
-					AgentMasterEntity agent = agentEntity.get();
-					agentId = agent.getJioAgentId();
-					agentLat = agent.getLatitude();
-					agentLong = agent.getLongitude();
-					
-					log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
-				}
-				
-				if("DB".equalsIgnoreCase(LatLongKey)) {
-					log.info("Generate OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
-					input.setLatitude(agentLat.toString());
-					input.setLongitude(agentLong.toString());
-					log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
-					log.info("Generate OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
-				}
 				
 				externalRefNo = "JPBV" + String.valueOf(System.currentTimeMillis())
 				              .substring(String.valueOf(System.currentTimeMillis()).length() - 12);
@@ -514,6 +521,75 @@ public class CustomerServiceImpl implements CustomerService {
 				if(statusCode != null && (statusCode == 500 || statusCode == 408 || statusCode == 503)) {
 					master.setNextActionType("HARD_EXIT");
 					master.setNextActionSubType("API_DOWN");
+				} 
+				else if ("9999".equalsIgnoreCase(finalResponse.getError().getCode())
+						&& finalResponse.getError() != null
+						&& finalResponse.getError().getCode().toLowerCase().contains("/getCustomerEligibility")) 
+				{					
+					master.setNextActionType("HARD_EXIT");
+					master.setNextActionSubType("API_DOWN");
+				}
+				else if("ELICHK003".equalsIgnoreCase(finalResponse.getError().getCode())) {
+					master.setNextActionType("HARD_EXIT");
+					master.setNextActionSubType("ACC_EXISTS");
+				} else if (finalResponse.getError().getCode() != null) {
+					
+					String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+
+				    switch (errorCode.toUpperCase()) {
+
+				        case "FTCHAGNTINFO04":
+				        case "SNDMBLOTP001":
+				            master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("DUPLICATE_REQUEST");
+				            break;
+
+				        case "FTCHAGNTINFO02":
+				            master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("AGENT_INACTIVE");
+				            break;
+
+				        case "FTCHAGNTINFO03":
+				            master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("INVALID_AGENT");
+				            break;
+
+				        case "FTCHAGNTINFO01":
+				            master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("AGENT_INFO_ERROR");
+				            break;
+
+				        case "1015":
+				            master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("OUTSIDE_RADIUS");
+				            break;
+
+				        case "ELICHK001":
+				        case "ELICHK002":
+				            master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("API_DOWN");
+				            break;
+
+				        case "ELICHK003":
+				            master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("ACC_EXISTS");
+				            break;
+
+				        case "ELICHK004":
+				            master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("ELIGIBILITY_FAILED");
+				            break;
+
+				        case "OTP001":
+				            master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("OTP_FAILURE");
+				            break;
+				         
+				        case "INFDEDUPE002":
+				        	master.setNextActionType("HARD_EXIT");
+				            master.setNextActionSubType("MATCH_FOUND");
+				            break;
+				    }
 				}
 				
 				// Master
@@ -2181,7 +2257,7 @@ public class CustomerServiceImpl implements CustomerService {
 //			List<CustomerMasterEntity> records = masterRepo.findByNextActionTypeAndNextActionSubType("SUBMITTED", "EXIT");
 
 			List<CustomerMasterEntity> records = masterRepo.applicationStatusRecords("SUBMITTED", "EXIT",
-					Arrays.asList("IN_PROGRESS, PENDING, FAILED"));
+					Arrays.asList("IN_PROGRESS", "PENDING", "FAILED"));
 			
 			if(records.isEmpty()) {
 	    		log.info("No Customers found for Jio Onboarding Status.......");
