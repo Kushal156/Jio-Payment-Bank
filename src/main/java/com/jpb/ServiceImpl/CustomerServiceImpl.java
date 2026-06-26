@@ -63,9 +63,11 @@ import com.jpb.Entity.CustomerApiLogEntity;
 import com.jpb.Entity.CustomerHistoryEntity;
 import com.jpb.Entity.CustomerMasterEntity;
 import com.jpb.Entity.DebitTransactionEntity;
+import com.jpb.Entity.ErrorCodeEntity;
 import com.jpb.Entity.WalletMasterEntity;
 import com.jpb.Repository.AgentMasterRepository;
 import com.jpb.Repository.CustomerApiLogRepository;
+import com.jpb.Repository.CustomerErrorMasterRepository;
 import com.jpb.Repository.CustomerHistoryRepository;
 import com.jpb.Repository.CustomerMasterRepository;
 import com.jpb.Repository.DebitTransactionRepository;
@@ -184,6 +186,12 @@ public class CustomerServiceImpl implements CustomerService {
 	
 	@Autowired
 	WalletMasterRepository walletRepo;
+	
+	@Autowired 
+	CustomerErrorMasterRepository errorRepo;
+	
+	@Autowired
+	private ErrorMasterCacheService errorCacheService;
 
 	// Generate OTP
 	@Override
@@ -235,34 +243,27 @@ public class CustomerServiceImpl implements CustomerService {
 			//Dedupe check for duplicate Mobile No & Application No
 			List<CustomerMasterEntity> dedupeCheck = masterRepo.findByMobileNo(input.getMobileNumber());
 			if(!dedupeCheck.isEmpty()) {
-				
-				Set<String> excludedHardExitSubTypes = Set.of(
-				        "RETRY_EXHAUSTED",
-				        "API_DOWN",
-				        "ACC_EXISTS",
-				        "DUPLICATE_REQUEST",
-				        "AGENT_INACTIVE",
-				        "INVALID_AGENT",
-				        "AGENT_INFO_ERROR",
-				        "OUTSIDE_RADIUS",
-				        "ELIGIBILITY_FAILED",
-				        "OTP_FAILURE",
-				        "MATCH_FOUND"
-				);
-						
+					
 				Optional<CustomerMasterEntity> latestRecord = dedupeCheck.stream()
-				.filter(records ->
-				        !(
-				            "SUBMITTED".equalsIgnoreCase(records.getNextActionType())
-				            &&
-				            "EXIT".equalsIgnoreCase(records.getNextActionSubType())
-				        )
-				        &&
-		                !(
-		                    "HARD_EXIT".equalsIgnoreCase(records.getNextActionType())
-		                    && excludedHardExitSubTypes.contains(records.getNextActionSubType().toUpperCase())
-		                 )
-				).max(Comparator.comparing(CustomerMasterEntity::getCreatedDateTime));
+				        .filter(record -> {
+
+				            // Ignore completed journeys
+				            if ("SUBMITTED".equalsIgnoreCase(record.getNextActionType())
+				                    && "EXIT".equalsIgnoreCase(record.getNextActionSubType())) {
+				                return false;
+				            }
+
+				            // Ignore journeys configured in Error Master
+				            if (errorCacheService.isExcluded(
+				                    record.getNextActionType(),
+				                    record.getNextActionSubType())) {
+				                return false;
+				            }
+
+				            // Resume all other journeys
+				            return true;
+				        })
+				        .max(Comparator.comparing(CustomerMasterEntity::getCreatedDateTime));
 						
 				if(latestRecord.isPresent()) {
 					
@@ -428,13 +429,6 @@ public class CustomerServiceImpl implements CustomerService {
 				statusCode = ex.getStatusCode().value();
 				responseBody = ex.getResponseBodyAsString();
 				log.error("API error: {}, body: {}", statusCode, responseBody);
-//				if (response != null) {
-//				    error.setCode(String.valueOf(response.getStatusCode().value()));
-//				    error.setMessage(response.getBody());
-//				} else {
-//				    error.setCode("500");
-//				    error.setMessage("No response received from API");
-//				}
 			
 				finalResponse.setError(error);
 
@@ -501,7 +495,6 @@ public class CustomerServiceImpl implements CustomerService {
 			history.setActionSubType("GENERATE");
 			history.setGeneratedDateTime(LocalDateTime.now());
 			history.setVkid(input.getVkid());
-			// agent ID yet to finalized--------------------------------
 			history.setJioAgentId(agentId);
 
 			// Common Method for Success + Failure [History + API log + Master]
@@ -529,68 +522,87 @@ public class CustomerServiceImpl implements CustomerService {
 					master.setNextActionType("HARD_EXIT");
 					master.setNextActionSubType("API_DOWN");
 				}
-				else if("ELICHK003".equalsIgnoreCase(finalResponse.getError().getCode())) {
-					master.setNextActionType("HARD_EXIT");
-					master.setNextActionSubType("ACC_EXISTS");
-				} else if (finalResponse.getError().getCode() != null) {
+				
+				//-- new code
+				else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+						&& finalResponse.getError() != null) {
 					
 					String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+					
+					  ErrorCodeEntity config = errorCacheService.getErrorConfig(errorCode);
 
-				    switch (errorCode.toUpperCase()) {
+					    if (config != null) {
 
-				        case "FTCHAGNTINFO04":
-				        case "SNDMBLOTP001":
-				            master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("DUPLICATE_REQUEST");
-				            break;
+					        master.setNextActionType(config.getNextActionType());
+					        master.setNextActionSubType(config.getNextActionSubType());
 
-				        case "FTCHAGNTINFO02":
-				            master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("AGENT_INACTIVE");
-				            break;
-
-				        case "FTCHAGNTINFO03":
-				            master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("INVALID_AGENT");
-				            break;
-
-				        case "FTCHAGNTINFO01":
-				            master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("AGENT_INFO_ERROR");
-				            break;
-
-				        case "1015":
-				            master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("OUTSIDE_RADIUS");
-				            break;
-
-				        case "ELICHK001":
-				        case "ELICHK002":
-				            master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("API_DOWN");
-				            break;
-
-				        case "ELICHK003":
-				            master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("ACC_EXISTS");
-				            break;
-
-				        case "ELICHK004":
-				            master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("ELIGIBILITY_FAILED");
-				            break;
-
-				        case "OTP001":
-				            master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("OTP_FAILURE");
-				            break;
-				         
-				        case "INFDEDUPE002":
-				        	master.setNextActionType("HARD_EXIT");
-				            master.setNextActionSubType("MATCH_FOUND");
-				            break;
-				    }
+					        finalResponse.getError().setMessage(config.getUserMessage());
+					    }	
 				}
+				//-- new code ends
+
+//				else if("ELICHK003".equalsIgnoreCase(finalResponse.getError().getCode())) {
+//					master.setNextActionType("HARD_EXIT");
+//					master.setNextActionSubType("ACC_EXISTS");
+//				} else if (finalResponse.getError().getCode() != null) {
+//					
+//					String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+//
+//				    switch (errorCode.toUpperCase()) {
+//
+//				        case "FTCHAGNTINFO04":
+//				        case "SNDMBLOTP001":
+//				            master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("DUPLICATE_REQUEST");
+//				            break;
+//
+//				        case "FTCHAGNTINFO02":
+//				            master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("AGENT_INACTIVE");
+//				            break;
+//
+//				        case "FTCHAGNTINFO03":
+//				            master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("INVALID_AGENT");
+//				            break;
+//
+//				        case "FTCHAGNTINFO01":
+//				            master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("AGENT_INFO_ERROR");
+//				            break;
+//
+//				        case "1015":
+//				            master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("OUTSIDE_RADIUS");
+//				            break;
+//
+//				        case "ELICHK001":
+//				        case "ELICHK002":
+//				            master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("API_DOWN");
+//				            break;
+//
+//				        case "ELICHK003":
+//				            master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("ACC_EXISTS");
+//				            break;
+//
+//				        case "ELICHK004":
+//				            master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("ELIGIBILITY_FAILED");
+//				            break;
+//
+//				        case "OTP001":
+//				            master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("OTP_FAILURE");
+//				            break;
+//				         
+//				        case "INFDEDUPE002":
+//				        	master.setNextActionType("HARD_EXIT");
+//				            master.setNextActionSubType("MATCH_FOUND");
+//				            break;
+//				    }
+//				}
 				
 				// Master
 				master.setApplicationNumber(finalResponse.getApplicationNumber());
@@ -826,7 +838,23 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setNextActionType(finalResponse.getNextAction().getType());
 				history.setNextActionSubType(finalResponse.getNextAction().getSubType());
 				history.setRemarks("OTP Verified");
-			} else {
+			}
+			else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+					&& finalResponse.getError() != null) {
+				
+				String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+				
+				  ErrorCodeEntity config = errorCacheService.getErrorConfig(errorCode);
+
+				    if (config != null) {
+
+				        master.setNextActionType(config.getNextActionType());
+				        master.setNextActionSubType(config.getNextActionSubType());
+
+				        finalResponse.getError().setMessage(config.getUserMessage());
+				        history.setRemarks("OTP Verify Pending");
+				    }	
+			}else {
 				history.setRemarks("OTP Verify Pending");
 			}
 
@@ -969,12 +997,7 @@ public class CustomerServiceImpl implements CustomerService {
 					: finalResponse.getError().getMessage();
 
 			// DB Activity --------------------------------------------------------------
-			//Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumber(input.getApplicationNumber());
 			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByExternalAppRefNumber(input.getExternalAppRefNumber());
-						
-//			if (masterEntity.isEmpty()) {
-//				throw new RuntimeException("Customer not found with same Application-No");
-//			}
 
 			if (masterEntity.isPresent()) {
 				master = masterEntity.get();
@@ -1023,7 +1046,23 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setNextActionType("MOBILE_OTP");
 				history.setNextActionSubType("VERIFY");
 				history.setRemarks("OTP Sent Again");
-			} else {
+			} 
+			else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+					&& finalResponse.getError() != null) {
+				
+				String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+				
+				  ErrorCodeEntity config = errorCacheService.getErrorConfig(errorCode);
+
+				    if (config != null) {
+
+				        master.setNextActionType(config.getNextActionType());
+				        master.setNextActionSubType(config.getNextActionSubType());
+
+				        finalResponse.getError().setMessage(config.getUserMessage());
+				        history.setRemarks("Resend OTP Pending");
+				    }	
+			}else {
 				history.setRemarks("Resend OTP Pending");
 			}
 
@@ -1226,7 +1265,23 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setNextActionType("EMAIL_OTP");
 				history.setNextActionSubType("VERIFY");
 				history.setRemarks("Email OTP Sent");
-			} else {
+			} 
+			else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+					&& finalResponse.getError() != null) {
+				
+				String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+				
+				  ErrorCodeEntity config = errorCacheService.getErrorConfig(errorCode);
+
+				    if (config != null) {
+
+				        master.setNextActionType(config.getNextActionType());
+				        master.setNextActionSubType(config.getNextActionSubType());
+
+				        finalResponse.getError().setMessage(config.getUserMessage());
+				        history.setRemarks("Email OTP Pending");
+				    }	
+			}else {
 				history.setRemarks("Email OTP Pending");
 			}
 
@@ -1451,7 +1506,23 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setNextActionType("AADHAAR");
 				history.setNextActionSubType("EKYC-BIOMETRIC");
 				history.setRemarks("Email OTP Verified");
-			} else {
+			} 
+			else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+					&& finalResponse.getError() != null) {
+				
+				String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+				
+				  ErrorCodeEntity config = errorCacheService.getErrorConfig(errorCode);
+
+				    if (config != null) {
+
+				        master.setNextActionType(config.getNextActionType());
+				        master.setNextActionSubType(config.getNextActionSubType());
+
+				        finalResponse.getError().setMessage(config.getUserMessage());
+				        history.setRemarks("Email OTP Pending");
+				    }	
+			}else {
 				history.setRemarks("Email OTP Pending");
 			}
 
@@ -1650,7 +1721,24 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setNextActionType("EMAIL_OTP");
 				history.setNextActionSubType("VERIFY");
 				history.setRemarks("Email OTP Verfied");
-			} else {
+			}
+			else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+					&& finalResponse.getError() != null) {
+				
+				String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+				
+				  ErrorCodeEntity config = errorCacheService.getErrorConfig(errorCode);
+
+				    if (config != null) {
+
+				        master.setNextActionType(config.getNextActionType());
+				        master.setNextActionSubType(config.getNextActionSubType());
+
+				        finalResponse.getError().setMessage(config.getUserMessage());
+				        history.setRemarks("Email OTP Pending");
+				    }	
+			} 
+			else {
 				history.setRemarks("Email OTP Pending");
 			}
 
@@ -1915,7 +2003,24 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setNextActionSubType("RETRY_EXHAUSTED");
 				history.setRemarks(finalResponse.getError().getMessage());
 				  
-			} else {
+			}
+			else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+					&& finalResponse.getError() != null) {
+				
+				String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+				
+				ErrorCodeEntity config = errorCacheService.getErrorConfig(errorCode);
+
+				    if (config != null) {
+
+				        master.setNextActionType(config.getNextActionType());
+				        master.setNextActionSubType(config.getNextActionSubType());
+
+				        finalResponse.getError().setMessage(config.getUserMessage());
+				        history.setRemarks("PAN Aadhaar Verfication Pending");
+				    }	
+			}
+			else {
 				history.setRemarks("PAN Aadhaar Verfication Pending");
 			}
 
@@ -2218,7 +2323,24 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setNextActionType("APPLICATION");
 				history.setNextActionSubType("SUBMIT");
 				history.setRemarks("Customer E-Auth Done & Verfied");
-			} else {
+			}
+			else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+					&& finalResponse.getError() != null) {
+				
+				String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+				
+				  ErrorCodeEntity config = errorCacheService.getErrorConfig(errorCode);
+
+				    if (config != null) {
+
+				        master.setNextActionType(config.getNextActionType());
+				        master.setNextActionSubType(config.getNextActionSubType());
+
+				        finalResponse.getError().setMessage(config.getUserMessage());
+				        history.setRemarks("Customer E-Auth Pending");
+				    }	
+			}
+			else {
 				history.setRemarks("Customer E-Auth Pending");
 			}
 
@@ -2749,7 +2871,24 @@ public class CustomerServiceImpl implements CustomerService {
 				history.setNextActionType("SUBMITTED");
 				history.setNextActionSubType("EXIT");
 				history.setRemarks("Application Submitted");
-			} else {
+			} 
+			else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+					&& finalResponse.getError() != null) {
+				
+				String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+				
+				  ErrorCodeEntity config = errorCacheService.getErrorConfig(errorCode);
+
+				    if (config != null) {
+
+				        master.setNextActionType(config.getNextActionType());
+				        master.setNextActionSubType(config.getNextActionSubType());
+
+				        finalResponse.getError().setMessage(config.getUserMessage());
+				        history.setRemarks("Application Submit Pending");
+				    }	
+			}
+			else {
 				history.setRemarks("Application Submit Pending");
 			}
 
