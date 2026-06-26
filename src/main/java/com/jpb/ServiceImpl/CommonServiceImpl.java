@@ -435,6 +435,7 @@ public class CommonServiceImpl {
 		return ResponseEntity.ok(response);
 	}
 
+	// GL Balance Check
 	public ResponseEntity<?> balance(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
 		
 		String url = "https://sitapig.test.jiobank.in:9402/jpb/exp/v1/app/agent/" + channelId + "/tradingaccount/balance";

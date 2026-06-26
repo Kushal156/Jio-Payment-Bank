@@ -40,6 +40,9 @@ public class ErrorCodeEntity {
 
 	@Column(name = "updated_date_time")
 	private LocalDateTime updatedAt;
+	
+	@Column(name = "is_dedupe_excluded")
+	private Boolean isDedupeExcluded;
 
 	@PrePersist
 	protected void onCreate() {

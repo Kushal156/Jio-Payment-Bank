@@ -1,14 +1,18 @@
 package com.jpb.ServiceImpl;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +46,10 @@ import com.jpb.DTO.CustomerPanAadharVerifyResponseDTO;
 import com.jpb.DTO.DebitCardDetailsDTO;
 import com.jpb.DTO.ErrorDetails;
 import com.jpb.DTO.FinancialDetailsDTO;
+import com.jpb.DTO.GenerateOTPRequestDTO;
+import com.jpb.DTO.GenerateOtpResponseDTO;
 import com.jpb.DTO.GuardianDTO;
+import com.jpb.DTO.NextActionDTO;
 import com.jpb.DTO.NomineeDTO;
 import com.jpb.DTO.OVDetailsDTO;
 import com.jpb.DTO.OrganizationDTO;
@@ -53,9 +60,14 @@ import com.jpb.DTO.RecallApplicationRequestDTO;
 import com.jpb.DTO.RefundCommonRequest;
 import com.jpb.DTO.RefundDataDTO;
 import com.jpb.DTO.RefundResponseDTO;
+import com.jpb.DTO.ResendOtpRequestDTO;
 import com.jpb.DTO.ResendOtpResponseDTO;
+import com.jpb.DTO.SecureDTO;
 import com.jpb.DTO.SubmitApplicationRequstDTO;
 import com.jpb.DTO.SubmitApplicationResponseDTO;
+import com.jpb.DTO.ValidationMethodsDTO;
+import com.jpb.DTO.VerifyOtpRequestDTO;
+import com.jpb.DTO.VerifyOtpResponseDTO;
 import com.jpb.DTO.VoucherDetailsDTO;
 import com.jpb.Entity.AgentMasterEntity;
 import com.jpb.Entity.CreditTransactionEntity;
@@ -66,9 +78,11 @@ import com.jpb.Entity.CustomerRefundApiLogEntity;
 import com.jpb.Entity.CustomerRefundHistoryEntity;
 import com.jpb.Entity.CustomerRefundMasterEntity;
 import com.jpb.Entity.DebitTransactionEntity;
+import com.jpb.Entity.ErrorCodeEntity;
 import com.jpb.Repository.AgentMasterRepository;
 import com.jpb.Repository.CreditTransactionRepository;
 import com.jpb.Repository.CustomerApiLogRepository;
+import com.jpb.Repository.CustomerErrorMasterRepository;
 import com.jpb.Repository.CustomerHistoryRepository;
 import com.jpb.Repository.CustomerMasterRepository;
 import com.jpb.Repository.DebitTransactionRepository;
@@ -81,6 +95,9 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 @Slf4j
 public class TestService {
+	
+	@Value("${LatLongKey}")
+	private String LatLongKey;
 
 	@Value("${generateOtpURL}")
 	private String URL;
@@ -169,6 +186,582 @@ public class TestService {
 	
 	@Autowired
 	CreditTransactionRepository creditRepo;
+	
+	@Autowired 
+	CustomerErrorMasterRepository errorRepo;
+	
+	// Generate OTP mocked
+	public ResponseEntity<?> generateOtp(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+		ObjectMapper mapper = new ObjectMapper();
+		
+		log.info("Generate OTP Request from Customer :: {}", mapper.writeValueAsString(input));
+		
+		CustomerMasterEntity master = new CustomerMasterEntity();
+		String requestJson = null;
+		String responseJson = null;
+		String agentId = null;
+		Double agentLat = null, agentLong = null;
+		String externalRefNo = null; //"JPBV" + System.currentTimeMillis()
+		String applicationNo = null;
+		Integer masterId = null;
+		boolean resumedJourney = false;
+		GenerateOtpResponseDTO finalResponse = new GenerateOtpResponseDTO();
+		ErrorDetails error = new ErrorDetails();
+		try {			
+
+			if (input.getMobileNumber() == null || input.getMobileNumber().length() != 10) {
+				error.setCode("400");
+				error.setMessage("Invalid Mobile Number");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+				return ResponseEntity.ok(finalResponse);
+			}
+			
+			Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+			if (agentEntity.isPresent()) {
+				AgentMasterEntity agent = agentEntity.get();
+				agentId = agent.getJioAgentId();
+				agentLat = agent.getLatitude();
+				agentLong = agent.getLongitude();
+				
+				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+			}
+			
+			if("DB".equalsIgnoreCase(LatLongKey)) {
+				log.info("Generate OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
+				input.setLatitude(agentLat.toString());
+				input.setLongitude(agentLong.toString());
+				log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
+				log.info("Generate OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
+			}
+			
+			//Dedupe check for duplicate Mobile No & Application No
+			List<CustomerMasterEntity> dedupeCheck = masterRepo.findByMobileNo(input.getMobileNumber());
+			if(!dedupeCheck.isEmpty()) {
+				
+				Set<String> excludedHardExitSubTypes = Set.of(
+				        "RETRY_EXHAUSTED",
+				        "API_DOWN",
+				        "ACC_EXISTS",
+				        "DUPLICATE_REQUEST",
+				        "AGENT_INACTIVE",
+				        "INVALID_AGENT",
+				        "AGENT_INFO_ERROR",
+				        "OUTSIDE_RADIUS",
+				        "ELIGIBILITY_FAILED",
+				        "OTP_FAILURE",
+				        "MATCH_FOUND"
+				);
+						
+				Optional<CustomerMasterEntity> latestRecord = dedupeCheck.stream()
+				.filter(records ->
+				        !(
+				            "SUBMITTED".equalsIgnoreCase(records.getNextActionType())
+				            &&
+				            "EXIT".equalsIgnoreCase(records.getNextActionSubType())
+				        )
+				        &&
+		                !(
+		                    "HARD_EXIT".equalsIgnoreCase(records.getNextActionType())
+		                    && excludedHardExitSubTypes.contains(records.getNextActionSubType().toUpperCase())
+		                 )
+				).max(Comparator.comparing(CustomerMasterEntity::getCreatedDateTime));
+						
+				if(latestRecord.isPresent()) {
+					
+					resumedJourney = true;
+					CustomerMasterEntity customerDetails = latestRecord.get();
+					applicationNo = customerDetails.getApplicationNumber();
+					externalRefNo = customerDetails.getExternalAppRefNumber();
+					masterId = customerDetails.getId();
+					master = customerDetails;
+					
+					log.info("Resuming Previous Journery ------->");
+					log.info("Found existing active application. ApplicationNo :: {}, ExternalRefNo :: {}",
+							customerDetails.getApplicationNumber(),	externalRefNo);
+										    
+					    input.setExternalAppRefNumber(externalRefNo);
+					    input.setApplicationNumber(applicationNo);
+					    ResponseEntity<?> resendOTPResponse = resendOtp(input, httpRequest);
+				
+					    if(resendOTPResponse.getBody() instanceof ResendOtpResponseDTO resendDTO) {
+					    	
+					    	finalResponse.setApplicationNumber(resendDTO.getApplicationNumber());
+					    	finalResponse.setExternalAppRefNumber(externalRefNo);
+					    	finalResponse.setStatus(resendDTO.getStatus());
+					    	
+					    	if ("SUCCESS".equalsIgnoreCase(resendDTO.getStatus())) {
+
+					            NextActionDTO next = new NextActionDTO();
+					            next.setType("MOBILE_OTP");
+					            next.setSubType("VERIFY");
+					            finalResponse.setNextAction(next);
+					        } else {
+					            finalResponse.setError(resendDTO.getError());
+					        }
+					    }
+					    
+					    log.info("final Response to FrontEnd for Generate/Resend OTP :: {}", mapper.writeValueAsString(finalResponse));
+					    return ResponseEntity.ok(finalResponse);
+					
+				} else {
+					externalRefNo = "JPBV" + String.valueOf(System.currentTimeMillis())
+					              .substring(String.valueOf(System.currentTimeMillis()).length() - 12);
+					
+					//Save new records (SAVE CUSTOMER MASTER)
+					master = new CustomerMasterEntity();
+					master.setExternalAppRefNumber(externalRefNo);
+					master.setMobileNo(input.getMobileNumber());
+					master.setStatus("INITIATED");
+					master.setActionType("MOBILE_OTP");
+					master.setActionSubType("GENERATE");
+					master.setApplicationType(applicationType);
+					master.setApplicationSubType(applicationSubType);
+					master.setChannelId(channelId);
+					master.setOrganizationName(oranizationName);
+					master.setMobileNo(input.getMobileNumber());
+					master.setLatitude(input.getLatitude());
+					master.setLongitude(input.getLongitude());
+					master.setStage(1);
+					master.setCreatedDateTime(LocalDateTime.now());
+					master.setJioAgentId(agentId);
+					master.setVkid(input.getVkid());
+					
+					if(input.getAddOn() != null) {
+						master.setCardOpted(input.getAddOn().getCardType());
+					}else {
+						master.setCardOpted(null);
+					}
+					
+					master = masterRepo.save(master);
+					masterId = master.getId();
+				}	
+			} else {
+				
+				externalRefNo = "JPBV" + String.valueOf(System.currentTimeMillis())
+				              .substring(String.valueOf(System.currentTimeMillis()).length() - 12);
+				
+				//Save new records (SAVE CUSTOMER MASTER)
+				master = new CustomerMasterEntity();
+				master.setExternalAppRefNumber(externalRefNo);
+				master.setMobileNo(input.getMobileNumber());
+				master.setStatus("INITIATED");
+				master.setActionType("MOBILE_OTP");
+				master.setActionSubType("GENERATE");
+				master.setApplicationType(applicationType);
+				master.setApplicationSubType(applicationSubType);
+				master.setChannelId(channelId);
+				master.setOrganizationName(oranizationName);
+				master.setMobileNo(input.getMobileNumber());
+				master.setLatitude(input.getLatitude());
+				master.setLongitude(input.getLongitude());
+				master.setStage(1);
+				master.setCreatedDateTime(LocalDateTime.now());
+				master.setJioAgentId(agentId);
+				master.setVkid(input.getVkid());
+				
+				if(input.getAddOn() != null) {
+					master.setCardOpted(input.getAddOn().getCardType());
+				}else {
+					master.setCardOpted(null);
+				}
+				
+				master = masterRepo.save(master);
+				masterId = master.getId();
+			}
+
+			// Token
+			if (!tokenManager.isAccessTokenValid()) {
+				auth.generateToken(httpRequest);
+			}
+
+			// Request
+			GenerateOTPRequestDTO request = new GenerateOTPRequestDTO();
+			request.setExternalAppRefNumber(externalRefNo);
+			request.setApiVersion(apiVersion);
+			request.setApplicationType(applicationType);
+			request.setApplicationSubType(applicationSubType);
+			request.setInitiatingEntityId(channelId);
+
+			ActionDTO action = new ActionDTO();
+			action.setType("MOBILE_OTP");
+			action.setSubType("GENERATE");
+			request.setAction(action);
+
+			OrganizationDTO org = new OrganizationDTO();
+			org.setId(oranizationName);
+			request.setOrganization(org);
+
+			ContactDetailsDTO contact = new ContactDetailsDTO();
+			contact.setMobileNumber(input.getMobileNumber());
+
+			PersonDTO person = new PersonDTO();
+			person.setPersonType("INDIVIDUAL");
+			person.setContactDetails(Collections.singletonList(contact));
+
+			request.setPersons(Collections.singletonList(person));
+
+			BCDetailsDTO bcDetails = new BCDetailsDTO();
+			bcDetails.setUserId(agentId);
+			request.setBcDetails(bcDetails);
+
+			requestJson = mapper.writeValueAsString(request);
+
+			log.info("JSON Request for Generate OTP :: {}", requestJson);
+
+			HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+			HttpEntity<GenerateOTPRequestDTO> entity = new HttpEntity<>(request, headers);
+
+			ResponseEntity<String> response = null;
+			String responseBody = null;
+			Integer statusCode = null;
+
+			try {
+				
+				responseBody = """ 
+						{"externalAppRefNumber":"JPBV782378404736","applicationNumber":"7245JPBV78237840473648729","status":"SUCCESS","nextAction":{"type":"MOBILE_OTP","subType":"VERIFY"},"data":"SUCCESS"}
+						""";  
+				
+				log.info("JSON Raw Response for Generate OTP :: {}", response.getBody());
+			
+			} catch (HttpStatusCodeException ex) {
+				
+				statusCode = ex.getStatusCode().value();
+				responseBody = ex.getResponseBodyAsString();
+				log.error("API error: {}, body: {}", statusCode, responseBody);
+			
+				finalResponse.setError(error);
+
+			} catch (ResourceAccessException ex) {
+				statusCode = 408;
+				responseBody = "Timeout: " + ex.getMessage();
+				log.error("API timeout", ex);
+
+			} catch (Exception ex) {
+				statusCode = 500;
+				responseBody = "Unexpected error: " + ex.getMessage();
+				log.error("API failure", ex);
+			}
+
+			if (statusCode != null && statusCode == 200 && responseBody != null) {
+				try {
+					
+					finalResponse = mapper.readValue(responseBody, GenerateOtpResponseDTO.class);
+					
+				} catch (Exception e) {
+					error.setCode("500");
+					error.setMessage("Response parsing failed");
+					finalResponse.setError(error);
+					finalResponse.setStatus("FAILED");
+				}
+			} else {
+
+				error.setCode(String.valueOf(statusCode));
+				error.setMessage(responseBody != null ? responseBody : "API Failed");
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+			}
+			
+			if(!resumedJourney) {
+
+			String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+					? "No Error Msg" : finalResponse.getError().getMessage();
+
+			// UPDATE MASTER (Response)
+			master.setStatus(finalResponse.getStatus());
+			master.setUpdatedDateTime(LocalDateTime.now());
+
+			// SAVE API LOG
+			CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+			logEntity.setMasterId(masterId);
+			logEntity.setApiName("GENERATE_OTP");
+			logEntity.setRequestPayload(requestJson);
+			logEntity.setResponsePayload(mapper.writeValueAsString(finalResponse));
+			logEntity.setStatusCode(response.getStatusCode().value());
+			logEntity.setCreatedAt(LocalDateTime.now());
+			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
+			logEntity.setErrorMessage(errorMsg);
+
+			// SAVE HISTORY
+			CustomerHistoryEntity history = new CustomerHistoryEntity();
+			history.setMasterId(masterId);
+			history.setExternalAppRefNo(externalRefNo);
+			history.setApplicationNum(finalResponse.getApplicationNumber());
+			history.setApplicationType(applicationType);
+			history.setApplicationSubType(applicationSubType);
+			history.setApiName("GENERATE_OTP");
+			history.setStatus(finalResponse.getStatus());
+			history.setActionType("MOBILE_OTP");
+			history.setActionSubType("GENERATE");
+			history.setGeneratedDateTime(LocalDateTime.now());
+			history.setVkid(input.getVkid());
+			history.setJioAgentId(agentId);
+
+			// Common Method for Success + Failure [History + API log + Master]
+			if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+				// Master
+				master.setApplicationNumber(finalResponse.getApplicationNumber());
+				master.setNextActionType(finalResponse.getNextAction().getType());
+				master.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				master.setStage(2);
+
+				// History
+				history.setNextActionType(finalResponse.getNextAction().getType());
+				history.setNextActionSubType(finalResponse.getNextAction().getSubType());
+				history.setRemarks("OTP Received");
+			} else {
+				
+				if(statusCode != null && (statusCode == 500 || statusCode == 408 || statusCode == 503)) {
+					master.setNextActionType("HARD_EXIT");
+					master.setNextActionSubType("API_DOWN");
+				} 
+				else if ("9999".equalsIgnoreCase(finalResponse.getError().getCode())
+						&& finalResponse.getError() != null
+						&& finalResponse.getError().getCode().toLowerCase().contains("/getCustomerEligibility")) 
+				{					
+					master.setNextActionType("HARD_EXIT");
+					master.setNextActionSubType("API_DOWN");
+				}
+				
+				//-- new code
+				else if("FAILED".equalsIgnoreCase(finalResponse.getStatus()) 
+						&& finalResponse.getError() != null) {
+					
+					String errorCode = finalResponse.getError() != null ? finalResponse.getError().getCode() : null;
+					
+					Optional<ErrorCodeEntity> errorFinalRecords = errorRepo.findByErrorCode(errorCode);	
+					
+					if(errorFinalRecords.isPresent()) {
+						
+						ErrorCodeEntity errorRecords = errorFinalRecords.get();
+						master.setNextActionType(errorRecords.getNextActionType());
+						master.setNextActionSubType(errorRecords.getNextActionSubType());
+						
+						error.setCode(errorCode);
+						error.setMessage(errorRecords.getUserMessage());
+						finalResponse.setError(error);
+						log.info("Error Messages to frontend :: {}", mapper.writeValueAsString(finalResponse.getError()));
+					} else {
+						log.info("New Error Code, Please add it in the Database. :: {}", errorCode);
+					}		
+				}
+				//-- new code ends
+				// Master
+				master.setApplicationNumber(finalResponse.getApplicationNumber());
+				
+				Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(Error -> {
+					history.setRemarks(Error.getMessage());
+				},
+				() -> {
+					history.setRemarks("OTP Pending");
+				});
+			}
+
+			masterRepo.save(master);
+			apiLogRepo.save(logEntity);
+			historyRepo.save(history);
+			
+		  }
+			return ResponseEntity.ok(finalResponse);
+
+		} catch (Exception e) {
+
+			log.error("Generate OTP Exception", e);
+
+			error.setCode("500");
+			error.setMessage(e.getMessage());
+			finalResponse.setStatus("FAILED");
+			finalResponse.setError(error);
+
+			return ResponseEntity.ok(finalResponse);
+		}
+	}
+	
+	// Resend OTP Mocked
+	@Transactional
+	public ResponseEntity<?> resendOtp(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+
+			log.info("Resend OTP Request From Customer :: {}", input.toString());
+			ObjectMapper mapper = new ObjectMapper();
+			String agentId = null;
+			Double agentLat = null, agentLong = null;
+			Integer masterId = null;
+			CustomerMasterEntity master = null;
+			ResendOtpResponseDTO finalResponse = new ResendOtpResponseDTO();
+			ErrorDetails error = new ErrorDetails();
+			try {
+
+				Optional<AgentMasterEntity> agentEntity = agentRepo.findByVkidAndJioAgentIdIsNotNull(input.getVkid());
+				if (agentEntity.isPresent()) {
+					AgentMasterEntity agent = agentEntity.get();
+					agentId = agent.getJioAgentId();
+					agentLat = agent.getLatitude();
+					agentLong = agent.getLongitude();
+					log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
+				}
+				
+				if("DB".equalsIgnoreCase(LatLongKey)) {
+					log.info("Resend OTP : Before Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
+					input.setLatitude(agentLat.toString());
+					input.setLongitude(agentLong.toString());
+					log.info("Swapping Values of Lat-Long with Agent's Lat-Long.....");
+					log.info("Resend OTP : After Swapping Customer Lat :: {}, Customer Long :: {}, ", input.getLatitude(), input.getLongitude());
+				}
+
+				// Token
+				if (!tokenManager.isAccessTokenValid()) {
+					log.info("Token expired → generating new token");
+					auth.generateToken(httpRequest);
+				}
+
+				ResendOtpRequestDTO request = new ResendOtpRequestDTO();
+
+				// Request Building
+				request.setApplicationNumber(input.getApplicationNumber());
+				request.setApiVersion(apiVersion);
+				request.setApplicationType(applicationType);
+				request.setApplicationSubType(applicationSubType);
+				request.setInitiatingEntityId(channelId);
+				request.setApp(oranizationName);
+
+				// Organization
+				OrganizationDTO org = new OrganizationDTO();
+				org.setId(oranizationName);
+				request.setOrganization(org);
+
+				// Action
+				ActionDTO action = new ActionDTO();
+				action.setType("MOBILE_OTP");
+				action.setSubType("RESENDOTP");
+				request.setAction(action);
+
+				// BCDetails
+				BCDetailsDTO bcDetails = new BCDetailsDTO();
+				bcDetails.setUserId(agentId);
+				request.setBcDetails(bcDetails);
+
+				log.info("Resend-OTP request :: {}", request.toString());
+				log.info("JSON Request for Resend OTP :: {}", mapper.writeValueAsString(request));
+
+				HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
+						tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+
+				HttpEntity<ResendOtpRequestDTO> entity = new HttpEntity<>(request, headers);
+
+				ResponseEntity<String> response = null;
+				String responseBody = null;
+				Integer statusCode = null;
+
+				try {
+					responseBody = """
+							{"externalAppRefNumber":"JPBV782378404736","applicationNumber":"7245JPBV78237840473648729","status":"FAILED","error":{"code":"1015","message":"Agent location is outside the permitted work radius."}}
+							 """;
+					} catch (Exception ex) {
+					statusCode = 500;
+					responseBody = "Unexpected error: " + ex.getMessage();
+					log.error("API failure", ex);
+				}
+
+				if (statusCode != null && statusCode == 200 && responseBody != null) {
+					try {
+						finalResponse = mapper.readValue(responseBody, ResendOtpResponseDTO.class);
+					} catch (Exception e) {
+						error.setCode("500");
+						error.setMessage("Response parsing failed");
+						finalResponse.setError(error);
+						finalResponse.setStatus("FAILED");
+					}
+				} else {
+
+					error.setCode(String.valueOf(statusCode));
+					error.setMessage(responseBody != null ? responseBody : "API Failed");
+					finalResponse.setStatus("FAILED");
+					finalResponse.setError(error);
+				}
+
+				String errorMsg = (finalResponse.getError() == null || finalResponse.getError().getMessage() == null)
+						? "No Error Msg"
+						: finalResponse.getError().getMessage();
+
+				// DB Activity --------------------------------------------------------------
+				//Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumber(input.getApplicationNumber());
+				Optional<CustomerMasterEntity> masterEntity = masterRepo.findByExternalAppRefNumber(input.getExternalAppRefNumber());
+							
+//				if (masterEntity.isEmpty()) {
+//					throw new RuntimeException("Customer not found with same Application-No");
+//				}
+
+				if (masterEntity.isPresent()) {
+					master = masterEntity.get();
+					masterId = master.getId();
+					log.info("VKID :: {}, row :: {}", input.getVkid(), masterId);
+
+					master.setActionType("MOBILE_OTP");
+					master.setActionSubType("RESENDOTP");
+					master.setStatus(finalResponse.getStatus());
+				}
+
+				// SAVE API LOG
+				CustomerApiLogEntity logEntity = new CustomerApiLogEntity();
+				logEntity.setMasterId(masterId);
+				logEntity.setApiName("RESEND_OTP");
+				logEntity.setRequestPayload(mapper.writeValueAsString(request));
+				logEntity.setResponsePayload(responseBody);
+				logEntity.setStatusCode(statusCode);
+				logEntity.setCreatedAt(LocalDateTime.now());
+				logEntity.setTraceId(finalResponse.getApplicationNumber());
+				logEntity.setErrorMessage(errorMsg);
+
+				// SAVE HISTORY
+				CustomerHistoryEntity history = new CustomerHistoryEntity();
+				history.setMasterId(masterId);
+				history.setExternalAppRefNo(input.getApplicationNumber());
+				history.setApplicationNum(finalResponse.getApplicationNumber());
+				history.setApplicationType(applicationType);
+				history.setApplicationSubType(applicationSubType);
+				history.setApiName("RESEND_OTP");
+				history.setStatus(finalResponse.getStatus());
+				history.setActionType("MOBILE_OTP");
+				history.setActionSubType("RESENDOTP");
+				history.setGeneratedDateTime(LocalDateTime.now());
+				history.setJioAgentId(agentId);
+				history.setVkid(input.getVkid());
+
+				// Common Method for Success + Failure [History + API log + Master]
+				if ("SUCCESS".equalsIgnoreCase(finalResponse.getStatus())) {
+					// Master
+					master.setNextActionType("MOBILE_OTP");
+					master.setNextActionSubType("VERIFY");
+					master.setStage(2);
+
+					// History
+					history.setNextActionType("MOBILE_OTP");
+					history.setNextActionSubType("VERIFY");
+					history.setRemarks("OTP Sent Again");
+				} else {
+					history.setRemarks("Resend OTP Pending");
+				}
+
+				masterRepo.save(master);
+				apiLogRepo.save(logEntity);
+				historyRepo.save(history);
+				// --------------------------------------------------------------
+
+				return ResponseEntity.ok(finalResponse);
+
+			} catch (Exception e) {
+				log.error("Resend OTP Exception", e);
+				error.setCode("500");
+				error.setMessage(e.getMessage());
+				finalResponse.setStatus("FAILED");
+				finalResponse.setError(error);
+
+				return ResponseEntity.ok(finalResponse);
+			}
+		}
 	
 	//Voucher Redeem Mocked
 	@Transactional
