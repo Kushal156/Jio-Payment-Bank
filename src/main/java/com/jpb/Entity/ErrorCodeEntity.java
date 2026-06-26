@@ -37,7 +37,10 @@ public class ErrorCodeEntity {
 
 	@Column(name = "created_date_time", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
-
+	
+	@Column(name = "is_dedupe_excluded")
+	private String isDedupeExcluded;
+	
 	@Column(name = "updated_date_time")
 	private LocalDateTime updatedAt;
 
