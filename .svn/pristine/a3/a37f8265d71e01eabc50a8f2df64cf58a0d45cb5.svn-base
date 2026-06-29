@@ -133,13 +133,6 @@ public final class UtilityService {
 	        	master.setNextActionType("HARD_EXIT");
 	            master.setNextActionSubType("MATCH_FOUND");
 	            break;
-	            
-	        case "ADDR001":
-	        case "ADDR002":
-	        case "ADDR003":
-	        	master.setNextActionType("HARD_EXIT");
-	            master.setNextActionSubType("ADDR_ISSUE");
-	        	break;
 	    }
 	}
 	

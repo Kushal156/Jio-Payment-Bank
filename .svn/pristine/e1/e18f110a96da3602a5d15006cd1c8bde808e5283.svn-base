@@ -247,8 +247,7 @@ public class CustomerServiceImpl implements CustomerService {
 				        "OUTSIDE_RADIUS",
 				        "ELIGIBILITY_FAILED",
 				        "OTP_FAILURE",
-				        "MATCH_FOUND",
-				        "ADDR_ISSUE"
+				        "MATCH_FOUND"
 				);
 						
 				Optional<CustomerMasterEntity> latestRecord = dedupeCheck.stream()
@@ -924,6 +923,15 @@ public class CustomerServiceImpl implements CustomerService {
 				log.info("Resend OTP Raw Response :: {}", response.getBody());
 				responseBody = response.getBody();
 				statusCode = response.getStatusCode().value();
+				
+//				responseBody = """ 
+//						{"externalAppRefNumber":"JPBV782372120852",
+//						"applicationNumber":"7245JPBV78237212085249691",
+//						"status":"FAILED",
+//						"error":{"code":"FTCHAGNTINFO04",
+//						"message":"Duplicate execution attempt: The work item has already been processed to completion or failure. Further updates are restricted."}}
+//						""";
+//				statusCode = 200;
 
 			} catch (HttpStatusCodeException ex) {
 				statusCode = ex.getStatusCode().value();
@@ -965,6 +973,10 @@ public class CustomerServiceImpl implements CustomerService {
 			// DB Activity --------------------------------------------------------------
 			//Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumber(input.getApplicationNumber());
 			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByExternalAppRefNumber(input.getExternalAppRefNumber());
+						
+//			if (masterEntity.isEmpty()) {
+//				throw new RuntimeException("Customer not found with same Application-No");
+//			}
 
 			if (masterEntity.isPresent()) {
 				master = masterEntity.get();
@@ -983,6 +995,8 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setRequestPayload(mapper.writeValueAsString(request));
 			logEntity.setResponsePayload(response.getBody());
 			logEntity.setStatusCode(response.getStatusCode().value());
+//			logEntity.setResponsePayload(responseBody);
+//			logEntity.setStatusCode(statusCode);
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getApplicationNumber());
 			logEntity.setErrorMessage(errorMsg);
