@@ -3,6 +3,7 @@ package com.jpb.ServiceImpl;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -481,7 +482,14 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
-
+			Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(
+					ResponseError -> {
+						logEntity.setErrorCode(ResponseError.getCode());
+						}, 
+					() -> {
+						logEntity.setErrorCode("No Error Code");
+					});
+			
 			// SAVE HISTORY
 			CustomerHistoryEntity history = new CustomerHistoryEntity();
 			history.setMasterId(masterId);
@@ -769,10 +777,6 @@ public class CustomerServiceImpl implements CustomerService {
 			Optional<CustomerMasterEntity> masterEntity = masterRepo.findByApplicationNumberAndExternalAppRefNumber(
 					input.getApplicationNumber(), input.getExternalAppRefNumber());
 
-//			if (masterEntity.isEmpty()) {
-//				throw new RuntimeException("Customer not found with same Application-No & ExternalRefNo");
-//			}
-
 			if (masterEntity.isPresent()) {
 				master = masterEntity.get();
 				masterId = master.getId();
@@ -793,6 +797,13 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
+			Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(
+					ResponseError -> {
+						logEntity.setErrorCode(ResponseError.getCode());
+						}, 
+					() -> {
+						logEntity.setErrorCode("No Error Code");
+					});
 
 			// SAVE HISTORY
 			CustomerHistoryEntity history = new CustomerHistoryEntity();
@@ -986,6 +997,13 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getApplicationNumber());
 			logEntity.setErrorMessage(errorMsg);
+			Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(
+					ResponseError -> {
+						logEntity.setErrorCode(ResponseError.getCode());
+						}, 
+					() -> {
+						logEntity.setErrorCode("No Error Code");
+					});
 
 			// SAVE HISTORY
 			CustomerHistoryEntity history = new CustomerHistoryEntity();
@@ -1195,6 +1213,13 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
+			Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(
+					ResponseError -> {
+						logEntity.setErrorCode(ResponseError.getCode());
+						}, 
+					() -> {
+						logEntity.setErrorCode("No Error Code");
+					});
 
 			// SAVE HISTORY
 			CustomerHistoryEntity history = new CustomerHistoryEntity();
@@ -1420,6 +1445,13 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
+			Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(
+					ResponseError -> {
+						logEntity.setErrorCode(ResponseError.getCode());
+						}, 
+					() -> {
+						logEntity.setErrorCode("No Error Code");
+					});
 
 			// SAVE HISTORY
 			CustomerHistoryEntity history = new CustomerHistoryEntity();
@@ -1619,6 +1651,13 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
+			Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(
+					ResponseError -> {
+						logEntity.setErrorCode(ResponseError.getCode());
+						}, 
+					() -> {
+						logEntity.setErrorCode("No Error Code");
+					});
 
 			// SAVE HISTORY
 			CustomerHistoryEntity history = new CustomerHistoryEntity();
@@ -1869,6 +1908,13 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
+			Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(
+					ResponseError -> {
+						logEntity.setErrorCode(ResponseError.getCode());
+						}, 
+					() -> {
+						logEntity.setErrorCode("No Error Code");
+					});
 
 			// SAVE HISTORY
 			CustomerHistoryEntity history = new CustomerHistoryEntity();
@@ -2193,6 +2239,13 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
+			Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(
+					ResponseError -> {
+						logEntity.setErrorCode(ResponseError.getCode());
+						}, 
+					() -> {
+						logEntity.setErrorCode("No Error Code");
+					});
 
 			// SAVE HISTORY
 			CustomerHistoryEntity history = new CustomerHistoryEntity();
@@ -2330,10 +2383,7 @@ public class CustomerServiceImpl implements CustomerService {
 								
 								customers.setJioStatus(finalResponse.getData().getApplicationStatus());								
 								customers.setJioStage(finalResponse.getData().getApplicationStage());
-							} else {
-								
-								customers.setJioStatus("NOT FOUND");
-								customers.setJioStage("Record Not Present");
+								customers.setUpdatedDateTime(LocalDateTime.now());
 							}
 							
 							masterRepo.save(customers);
@@ -2724,6 +2774,13 @@ public class CustomerServiceImpl implements CustomerService {
 			logEntity.setCreatedAt(LocalDateTime.now());
 			logEntity.setTraceId(finalResponse.getExternalAppRefNumber());
 			logEntity.setErrorMessage(errorMsg);
+			Optional.ofNullable(finalResponse.getError()).ifPresentOrElse(
+					ResponseError -> {
+						logEntity.setErrorCode(ResponseError.getCode());
+						}, 
+					() -> {
+						logEntity.setErrorCode("No Error Code");
+					});
 
 			// SAVE HISTORY
 			CustomerHistoryEntity history = new CustomerHistoryEntity();
@@ -2774,4 +2831,6 @@ public class CustomerServiceImpl implements CustomerService {
 			finalResponse.setError(error);
 			return ResponseEntity.ok(finalResponse);
 		}
-	}}
+	}
+	
+}

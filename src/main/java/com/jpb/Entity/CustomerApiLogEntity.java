@@ -41,6 +41,9 @@ public class CustomerApiLogEntity {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
+    @Column(name = "error_code")
+    private String errorCode;
+    
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
