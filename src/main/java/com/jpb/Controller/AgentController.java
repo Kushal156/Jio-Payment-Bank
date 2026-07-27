@@ -20,7 +20,7 @@ import com.jpb.ServiceImpl.TestService;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
-@RequestMapping("/agent")
+@RequestMapping("/jpb/agent")
 @CrossOrigin("*")
 public class AgentController {
 	
@@ -90,18 +90,18 @@ public class AgentController {
 		return service.recallApplication(applicationNo, httpRequest, latitude, longitude);
 	}
 	
-//	@PostMapping("/info")
-//	public ResponseEntity<?> agentInfo(@RequestBody Map<String, Object> request, HttpServletRequest httpRequest) {
-//		
-//		String agentId = (String) request.get("agentId");
-//		String latitude = (String) request.get("latitude"); 
-//	    String longitude = (String) request.get("longitude");
-//		return service.agentInfo(agentId, httpRequest, latitude, longitude);
-//	}
+	@PostMapping("/info")
+	public ResponseEntity<?> agentInfo(@RequestBody Map<String, Object> request, HttpServletRequest httpRequest) {
+		
+		String agentId = (String) request.get("agentId");
+		String latitude = (String) request.get("latitude"); 
+	    String longitude = (String) request.get("longitude");
+		return testservice.agentInfo(agentId, httpRequest, latitude, longitude);
+	}
 	
-	@GetMapping("/info")
-	public ResponseEntity<?> agentInfo() {
-		return service.agentInfo();
+	@PostMapping("/data")
+	public ResponseEntity<?> agentData(@RequestBody SaveAgentInputDTO request) {
+		return service.agentData(request);
 	}
 
 }

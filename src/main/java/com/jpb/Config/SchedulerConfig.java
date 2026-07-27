@@ -23,17 +23,17 @@ public class SchedulerConfig {
 
 	        log.info("************ Starting all scheduler jobs after deployment ************");
 
-	        try {
-	            customerService.applicationStatus();
-	        } catch (Exception e) {
-	            log.error("Customer Scheduler Startup Failed", e);
-	        }
-
-	        try {
-	            agentService.agentInfo();
-	        } catch (Exception e) {
-	            log.error("Agent Scheduler Startup Failed", e);
-	        }
+//	        try {
+//	            customerService.applicationStatus();
+//	        } catch (Exception e) {
+//	            log.error("Customer Scheduler Startup Failed", e);
+//	        }
+//
+//	        try {
+//	            agentService.agentInfo();
+//	        } catch (Exception e) {
+//	            log.error("Agent Scheduler Startup Failed", e);
+//	        }
 	        
 	    }
 }

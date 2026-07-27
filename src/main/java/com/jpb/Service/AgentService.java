@@ -23,4 +23,6 @@ public interface AgentService {
 	ResponseEntity<?> recallApplication(String applicationNo, HttpServletRequest httpRequest, String latitude, String longitude);
 
 	ResponseEntity<?> agentInfo();
+
+	ResponseEntity<?> agentData(SaveAgentInputDTO request);
 }

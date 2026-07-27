@@ -32,5 +32,16 @@ public class AddressDTO {
     private Boolean sameAsPermanent;
 
     private GeoLocationDTO geoLocation;
+    
+    //DMT Params
+    private String pinCode;
+
+    public void setPinCode(String pinCode) {
+        this.pinCode = pinCode;
+    }
+
+    public void setPincode(String pincode) {
+        this.pincode = pincode;
+    }
 
 }

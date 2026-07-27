@@ -73,6 +73,12 @@ public class CommonServiceImpl {
 
 	@Value("${getPinDetails}")
 	private String pincodeURL;
+	
+	@Value("${JioCustomerStatusURL}")
+	private String JioCustomerStatusURL;
+	
+	@Value("${GLURL}")
+	private String GLURL;
 
 	@Autowired
 	AgentMasterRepository agentRepo;
@@ -438,7 +444,7 @@ public class CommonServiceImpl {
 	// GL Balance Check
 	public ResponseEntity<?> balance(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
 		
-		String url = "https://sitapig.test.jiobank.in:9402/jpb/exp/v1/app/agent/" + channelId + "/tradingaccount/balance";
+		//String url = "https://sitapig.test.jiobank.in:9402/jpb/exp/v1/app/agent/" + channelId + "/tradingaccount/balance";
 		ObjectMapper mapper = new ObjectMapper();
 		CommonResponseDTO finalResponse = new CommonResponseDTO();
 		ErrorDetails error = new ErrorDetails();
@@ -458,9 +464,10 @@ public class CommonServiceImpl {
 			tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
 
 			HttpEntity<String> entity = new HttpEntity<>(headers);
+			log.info("Entity :: {}", entity.toString());
 
 			try {
-				response = rest.exchange(url, HttpMethod.GET, entity, String.class);
+				response = rest.exchange(GLURL, HttpMethod.GET, entity, String.class);
 				log.info("JSON Raw Response for GL Balance :: {}", response.getBody());
 				responseBody = response.getBody();
 				statusCode = response.getStatusCode().value();
@@ -502,6 +509,47 @@ public class CommonServiceImpl {
 
 			return ResponseEntity.ok(finalResponse);
 		}		
+	}
+	
+	//Jio stage wise Customer Status Check
+	public ResponseEntity<?> customerStatus(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
+		    
+		 ObjectMapper mapper = new ObjectMapper();
+		 Map<String, Object> request = new LinkedHashMap<>();
+		 CommonResponseDTO finalResponse = new CommonResponseDTO();
+		 ErrorDetails error = new ErrorDetails();
+		 ResponseEntity<String> response = null;
+		 String responseBody = null;
+		 Integer statusCode = null;
+		    
+		 request.put("applicationNumber", input.getApplicationNumber());
+		 request.put("externalAppRefNumber", input.getExternalAppRefNumber());
+		 request.put("initiatingEntityId", this.channelId);
+		    
+		 if (!this.tokenManager.isAccessTokenValid()) {
+			 log.info("Token expired generating new token");
+		     this.auth.generateToken(httpRequest);
+		 } 
+		 
+		 log.info("JSON Customer Status Request :: {}", mapper.writeValueAsString(request));
+		 HttpHeaders headers = util.buildHeaders(httpRequest, tokenManager.getAccessToken(), tokenManager
+		        .getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
+		 HttpEntity<Map<String, Object>> entity = new HttpEntity(request, headers);
+		    
+		 try {
+		      response = rest.exchange(JioCustomerStatusURL, HttpMethod.POST, entity, String.class, new Object[0]);
+		      log.info("Customer Status Raw Response :: {}", response.getBody());
+		      
+		      responseBody = (String)response.getBody();
+		      statusCode = Integer.valueOf(response.getStatusCode().value());
+		      return ResponseEntity.ok(responseBody);
+		  } catch (Exception e) {
+		      log.error("Submit Application Exception", e);
+		      error.setCode("500");
+		      error.setMessage(e.getMessage());
+		      finalResponse.setStatus("FAILED");
+		      return ResponseEntity.ok(finalResponse);
+		  } 
 	}
 
 }

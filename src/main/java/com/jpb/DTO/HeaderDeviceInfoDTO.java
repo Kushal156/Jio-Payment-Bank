@@ -21,4 +21,12 @@ public class HeaderDeviceInfoDTO {
 	
 	//new params for customer Onboarding
 	private GeoLocationDTO location;
+	
+	//DMT Params
+	private String id;
+	private String ip;
+	private String osType;
+	private String osVer;
+	private String model;
+
 }

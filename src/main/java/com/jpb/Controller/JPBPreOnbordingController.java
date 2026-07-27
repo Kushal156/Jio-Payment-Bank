@@ -1,35 +1,23 @@
 package com.jpb.Controller;
 
-import java.io.File;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import com.jpb.DTO.JPBOnbardingLatLongRequestDto;
@@ -38,7 +26,6 @@ import com.jpb.DTO.OtpVerificationRequestDto;
 import com.jpb.DTO.PreOnboardingrequestDto;
 import com.jpb.DTO.PreOnbordingCommonResponseDto;
 import com.jpb.DTO.UserSearchRequestDto;
-import com.jpb.Entity.JioOnboardingVklMasterEntity;
 import com.jpb.Repository.PreOnboardingVklMasterRepository;
 import com.jpb.Service.OnboardingCheckService;
 import com.jpb.ServiceImpl.UtilityService;
@@ -79,7 +66,6 @@ public class JPBPreOnbordingController {
 	public ResponseEntity<?> submitApplication(@Valid @ModelAttribute PreOnboardingrequestDto dto) {
 
 		Object response = OnboardingCheckServices.submitApplication(dto);
-
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
 
@@ -94,8 +80,7 @@ public class JPBPreOnbordingController {
 	
 	@PostMapping("/insertlatlong")
 	public ResponseEntity<?> insertlatlong(@Valid @RequestBody JPBOnbardingLatLongRequestDto dto){
-		
-		
+				
 		PreOnbordingCommonResponseDto response = OnboardingCheckServices.insertlatlong(dto);
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
@@ -115,7 +100,6 @@ public class JPBPreOnbordingController {
 																							// procedure is
 
 			// Call the stored procedure with application_id and mobile_no as parameters for
-			// model view
 			Map<String, Object> storedProcResult = jdbcTemplate.queryForMap(storedProcedureQuery,
 					new Object[] { application_id, mobile_no });
 

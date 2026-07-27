@@ -6,15 +6,19 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -90,6 +94,9 @@ public class AgentServiceImpl implements AgentService {
 	
 	@Autowired
 	AgentMasterRepository agentRepo;
+	
+	@Autowired
+	JdbcTemplate jdbc;
 
 	// Save Agent
 	@Override
@@ -372,21 +379,9 @@ public class AgentServiceImpl implements AgentService {
 
 			ResponseEntity<String> response = rest.exchange(saveAgentUrl, HttpMethod.POST, entity, String.class);
 			
-//			String response = "{\n" +
-//			        "    \"applicationNumber\": \"7245REF177582231769288183\",\n" +
-//			        "    \"status\": \"FAILED\",\n" +
-//			        "    \"nextAction\": {\n" +
-//			        "        \"type\": \"UPDATE\",\n" +
-//			        "        \"subType\": \"PAN_NAME_DOB\"\n" +
-//			        "    },\n" +
-//			        "    \"data\": {\n" +
-//			        "        \"dobStatus\": \"N\",\n" +
-//			        "        \"panStatus\": \"E\",\n" +
-//			        "        \"apiSuccess\": true,\n" +
-//			        "        \"nameStatus\": \"N\",\n" +
-//			        "        \"aadhaarSeedStatus\": \"Y\"\n" +
-//			        "    }\n" +
-//			        "}";
+//			String response = """
+//					{"applicationNumber":"7245REF177727030109479170","status":"SUCCESS","nextAction":{"type":"UPDATE","subType":"PAN_NAME_DOB"},"data":{"dobStatus":"N","panStatus":"E","apiSuccess":true,"nameStatus":"N","aadhaarSeedStatus":"Y"}}
+//					""";
 //			AgentEkycResponseDTO finalResponse = mapper.readValue(response, AgentEkycResponseDTO.class);
 			
 			log.info("EKYC Raw Response :: {}", response.getBody());
@@ -526,10 +521,7 @@ public class AgentServiceImpl implements AgentService {
 	//Pan Update
 	@Override
 	@Transactional
-	public ResponseEntity<?> panUpdate(String applicationNo,
-	                                   String panNumber,
-	                                   String panName,
-	                                   String dob,
+	public ResponseEntity<?> panUpdate(String applicationNo, String panNumber, String panName, String dob,
 	                                   HttpServletRequest httpRequest,  String externalRefNo, String vkid,
 	                                   String latitude, String longitude) {
 
@@ -608,15 +600,9 @@ public class AgentServiceImpl implements AgentService {
 
 	        HttpEntity<PanUpdateRequestDTO> entity = new HttpEntity<>(request, headers);
 	        
-//	        String response = "{\n" +
-//	                "  \"applicationNumber\": \"7245REF177582231769288183\",\n" +
-//	                "  \"status\": \"FAILED\",\n" +
-//	                "  \"data\": {\n" +
-//	                "    \"status\": \"FAILED\",\n" +
-//	                "    \"message\": \"Onboarding Data saved successfully.\",\n" +
-//	                "    \"errorMessage\": null\n" +
-//	                "  }\n" +
-//	                "}";
+//	        String response = """
+//	        		{"applicationNumber":"7245REF177727030109479170","status":"SUCCESS","data":{"status":"Success","message":"Onboarding Data saved successfully.","errorMessage":null}}
+//	        		""";
 //	        PanUpdateResponseDTO finalResponse = mapper.readValue(response, PanUpdateResponseDTO.class);
 
 	        ResponseEntity<String> response = rest.exchange(saveAgentUrl, HttpMethod.POST, entity, String.class);
@@ -876,7 +862,7 @@ public class AgentServiceImpl implements AgentService {
 
                     ResponseEntity<String> apiResponse = rest.exchange(url, HttpMethod.GET, entity, String.class);
 
-                    log.info("Agent Info Raw Response for {} :: {}", agentId, apiResponse.getStatusCode());
+                    log.info("Agent Info Raw Response for {} :: {}", agentId, apiResponse.getBody());
 
                     finalResponse = mapper.readValue(apiResponse.getBody(), AgentInfoResponseDTO.class);
 
@@ -913,6 +899,118 @@ public class AgentServiceImpl implements AgentService {
 	    } catch(Exception e) {
 	    	log.error("Agent Info Exception", e);
 	        throw new RuntimeException("Agent Info API failed", e);
+	    }
+	}
+
+	//Agent Data + Existing Data to resume Journey
+	@Override
+	public ResponseEntity<?> agentData(SaveAgentInputDTO request) {
+		
+		ObjectMapper mapper = new ObjectMapper();
+		Map<String, Object> response = new LinkedHashMap<>();
+		String journeyType, message = "Agent data fetched successfully";
+		
+		try {
+			
+			if (request.getVkid() == null || request.getVkid().trim().isEmpty()) {
+	            response.put("status", false);
+	            response.put("message", "VKID is required");
+	            return ResponseEntity.badRequest().body(response);
+	        }
+
+	        String vkid = request.getVkid();
+
+	        String dataQuery = "SELECT * FROM dbo.vw_User_KYC_Details WHERE VK_ID = ?";
+	        String existingDataQuery = "EXEC BankingJio.usp_check_agent_present ?";
+
+	        Map<String, Object> agentDetails = jdbc.queryForMap(dataQuery, vkid);
+	        log.info("Agent Details :: {}", agentDetails.toString());
+	        
+	        Object dob = agentDetails.get("DOB");
+
+	        if (dob instanceof java.sql.Date) {
+	            agentDetails.put("DOB", ((java.sql.Date) dob).toLocalDate().toString());
+	        }
+	        
+	        Map<String, Object> existingDetails; 
+	        
+	        try {
+	        	existingDetails = jdbc.queryForMap(existingDataQuery, vkid);
+	        } catch (EmptyResultDataAccessException ex) {
+	        	existingDetails = new LinkedHashMap<>();
+	        }
+	        
+	        boolean hasExistingApplication = existingDetails.get("external_app_ref_number") != null
+	                && !existingDetails.get("external_app_ref_number").toString().trim().isEmpty();
+	        
+	        String nextActionType = Optional.ofNullable(existingDetails.get("next_action_type"))
+	                .map(Object::toString)
+	                .orElse("");
+
+	        String nextActionSubType = Optional.ofNullable(existingDetails.get("next_action_sub_type"))
+	                .map(Object::toString)
+	                .orElse("");
+
+	        if ("GENERATE_NEW".equalsIgnoreCase(nextActionType)
+	                && "EXIT".equalsIgnoreCase(nextActionSubType)) {
+
+	            journeyType = "NEW_JOURNEY";
+	            message = "Starting Fresh Application";
+
+	        } else if ("UPDATE".equalsIgnoreCase(nextActionType)
+	                && "PAN_NAME_DOB".equalsIgnoreCase(nextActionSubType)) {
+
+	            journeyType = "PAN_UPDATE";
+	            message = "Please proceed with your Pan-Validation";
+
+	        } else if (nextActionType.isBlank() && nextActionSubType.isBlank() && hasExistingApplication) {
+
+	            journeyType = "USE SAME EXT-REF-NO";
+	            message = "Resuming Previous Journey";
+
+	        } else if ("AADHAAR".equalsIgnoreCase(nextActionType)
+	                && "EKYC-BIOMETRIC".equalsIgnoreCase(nextActionSubType)) {
+	        	
+	        	journeyType = "EKYC";
+	        	message = "Please proceed with EKYC";
+	        	
+	        } else if ("AGENT ONBOARDED".equalsIgnoreCase(nextActionType)
+	                && "COMPLETE".equalsIgnoreCase(nextActionSubType)) {
+	        	
+	        	journeyType = "Agent Already On-Boarded";
+	        	message = "Agent Already On-Boarded";
+	        	
+	        } else {
+	            journeyType = "NEW_JOURNEY";
+	            message = "Starting Fresh Application";
+	        }
+
+	        response.put("status", true);
+	        response.put("message", message);
+	        response.put("journeyType", journeyType);
+	        response.put("agentDetails", agentDetails);
+	        response.put("existingDetails", existingDetails);
+	        
+	        log.info("JSON Raw Response for Agent Details for VKID :: {} :: {}",vkid, mapper.writeValueAsString(response));
+	        
+	        return ResponseEntity.ok(response);
+						
+		} catch (EmptyResultDataAccessException ex) {
+
+	        response.put("status", false);
+	        response.put("message", "No data found for VKID : " + request.getVkid());
+
+	        return ResponseEntity.ok(response);
+
+	    } catch (Exception e) {
+
+	        log.error("Agent Data to Mobile Team Exception", e);
+
+	        response.put("status", false);
+	        response.put("message", "Agent Data API failed");
+	        response.put("error", e.getMessage());
+
+	        return ResponseEntity.ok(response);
 	    }
 	}
 }

@@ -13,6 +13,15 @@ import lombok.ToString;
 public class DataDTO {
 
 	private String applicationNumber;
-
 	private List<AuthenticateEkycDTO> authenticateList;
+	
+	//DMT Check Mobile-No Params
+	private String remittanceUserId;
+	private String aadharToken;
+	private String firstName;
+	private String lastName;
+	
+	//DMT Register User Params
+	private String middleName;
+
 }

@@ -28,4 +28,9 @@ public class AadhaarDTO {
     private String aadhaarXml;
     private Boolean isResidentForeigner;
     private String demoAuthStatus;
+    
+    //Params for DMT-EKYC
+    private String aadhaarNumber;
+    private ConsentDTO consentCode;
+    private String number;
 }

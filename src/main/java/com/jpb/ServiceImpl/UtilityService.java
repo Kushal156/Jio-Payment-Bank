@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.jpb.DTO.AddressDTO;
 import com.jpb.DTO.CustomerPanAadharVerifyResponseDTO;
+import com.jpb.DTO.DMTDeviceSource;
 import com.jpb.DTO.GeoLocationDTO;
 import com.jpb.DTO.HeaderDeviceInfoDTO;
 import com.jpb.Entity.CustomerMasterEntity;
@@ -25,8 +26,11 @@ import org.json.XML;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -143,6 +147,53 @@ public final class UtilityService {
 	    }
 	}
 	
+	//Device Info for DMT 
+	public String getDMTDeviceInfoJson(HttpServletRequest httpRequest) {
+
+		try {
+			String userAgent = httpRequest.getHeader("User-Agent");
+
+			String deviceType = "WEB";
+			String os = "WINDOWS";
+
+			if (userAgent != null) {
+				String ua = userAgent.toLowerCase();
+
+				if (ua.contains("android") || ua.contains("iphone") || ua.contains("mobile")) {
+					deviceType = "MOB";
+				}
+
+				if (ua.contains("android"))
+					os = "ANDROID";
+				else if (ua.contains("iphone"))
+					os = "IOS";
+				else if (ua.contains("windows"))
+					os = "WINDOWS";
+				else if (ua.contains("mac"))
+					os = "MAC";
+			}
+
+			String ipAddress = httpRequest.getHeader("X-Forwarded-For");
+			if (ipAddress == null || ipAddress.isEmpty()) {
+				ipAddress = httpRequest.getRemoteAddr();
+			}
+
+			DMTDeviceSource deviceInfo = new DMTDeviceSource();
+			deviceInfo.setIp(ipAddress);
+			deviceInfo.setType(deviceType);
+			deviceInfo.setOsType(os);
+			deviceInfo.setOsVer("1.0");
+			deviceInfo.setModel(os);
+			deviceInfo.setId("1");
+			
+			ObjectMapper mapper = new ObjectMapper();
+			return mapper.writeValueAsString(deviceInfo);
+
+		} catch (Exception e) {
+			throw new RuntimeException("Error building device info", e);
+		}
+	}
+	
 	// Header for Device Info
 	public String getDeviceInfoJson(HttpServletRequest httpRequest, String latitude, String longitude) {
 
@@ -224,6 +275,113 @@ public final class UtilityService {
 
 		return headers;
 	}
+	
+	// Bio metric string to json and base64 conversion for DMT updated Timestamp
+		public String DMTconvertPidXmlToBase64Json(String xmlData) {
+			    try {
+			        //XML → JSON
+			        JSONObject xmlJson = XML.toJSONObject(xmlData);
+			        JSONObject pidData = xmlJson.optJSONObject("PidData");
+			        
+			        String consent = "I hereby provide my consent to Jio Payments Bank Limited (Bank) to "
+			        		+ "use my Aadhaar number and biometric authentication to verify my identity for"
+			        		+ " the purpose of doing eKYC. JPB has informed me that my biometrics will not "
+			        		+ "be stored/shared and will be submitted to CIDR only for the purpose of authentication. "
+			        		+ "I have reviewed the transaction details and found to be correct. I understand and agree "
+			        		+ "to the terms and conditions governing the Service as available on website www.jiobank.in "
+			        		+ "and confirm that my biometric authentication be treated as my consent for availing the "
+			        		+ "Service from the Bank. I hereby give my consent to receive promotional "
+			        		+ "consent on behalf of the Bank. The bank will be responsible for omission and commission of the BC agent";
+
+			        String base64Consent = Base64.getEncoder().encodeToString(consent.getBytes(StandardCharsets.UTF_8));
+			        
+			        DateTimeFormatter formatter = DateTimeFormatter
+			                .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+			                .withZone(ZoneOffset.UTC);
+
+			        String timestamp = formatter.format(Instant.now());
+			        String saTxn = sa + ":" + timestamp;
+			        log.info("SaTxn :: {}", saTxn);
+			                
+			        if (pidData == null) {
+			            throw new RuntimeException("Invalid PID XML: Missing PidData");
+			        }
+
+			        JSONObject resp = pidData.optJSONObject("Resp");
+			        JSONObject deviceInfo = pidData.optJSONObject("DeviceInfo");
+			        JSONObject skeyObj = pidData.optJSONObject("Skey");
+			        JSONObject dataObj = pidData.optJSONObject("Data");
+
+			        String hmac = String.valueOf(pidData.opt("Hmac"));
+
+			        //Build JSON
+			        JSONObject finalJson = new JSONObject();
+			        finalJson.put("type", "1");
+
+			        JSONObject captureResponse = new JSONObject();
+
+			        // Data section
+			        captureResponse.put("PidDatatype", String.valueOf(dataObj != null ? dataObj.opt("type") : ""));
+			        captureResponse.put("Piddata", String.valueOf(dataObj != null ? dataObj.opt("content") : ""));
+
+			        // Skey section
+			        captureResponse.put("ci", String.valueOf(skeyObj != null ? skeyObj.opt("ci") : ""));
+			        captureResponse.put("sessionKey", String.valueOf(skeyObj != null ? skeyObj.opt("content") : ""));
+
+			        // HMAC
+			        captureResponse.put("hmac", hmac);
+
+			        // Resp section
+			        captureResponse.put("errCode", String.valueOf(resp != null ? resp.opt("errCode") : ""));
+			        captureResponse.put("errInfo", String.valueOf(resp != null ? resp.opt("errInfo") : ""));
+			        captureResponse.put("fCount", String.valueOf(resp != null ? resp.opt("fCount") : ""));
+			        captureResponse.put("fType", String.valueOf(resp != null ? resp.opt("fType") : ""));
+			        captureResponse.put("nmPoints", String.valueOf(resp != null ? resp.opt("nmPoints") : ""));
+			        captureResponse.put("qScore", String.valueOf(resp != null ? resp.opt("qScore") : ""));
+
+			        // Device Info mapping
+			        captureResponse.put("dpID", String.valueOf(deviceInfo != null ? deviceInfo.opt("dpId") : ""));
+			        captureResponse.put("rdsID", String.valueOf(deviceInfo != null ? deviceInfo.opt("rdsId") : ""));
+			        captureResponse.put("rdsVer", String.valueOf(deviceInfo != null ? deviceInfo.opt("rdsVer") : ""));
+			        captureResponse.put("dc", String.valueOf(deviceInfo != null ? deviceInfo.opt("dc") : ""));
+			        captureResponse.put("mi", String.valueOf(deviceInfo != null ? deviceInfo.opt("mi") : ""));
+			        captureResponse.put("mc", String.valueOf(deviceInfo != null ? deviceInfo.opt("mc") : ""));
+			        captureResponse.put("consent", base64Consent);
+			        captureResponse.put("rc", "Y");
+			        captureResponse.put("ver", "2.0");
+			        captureResponse.put("tid", "registered");
+			        captureResponse.put("sa", sa);
+			        captureResponse.put("saTxn", saTxn);
+			        captureResponse.put("appCode", appCode);
+
+			        finalJson.put("captureResponse", captureResponse);
+
+			        // Device Info block
+			        JSONObject device = new JSONObject();
+			        device.put("dpId", String.valueOf(deviceInfo != null ? deviceInfo.opt("dpId") : ""));
+			        device.put("rdsId", String.valueOf(deviceInfo != null ? deviceInfo.opt("rdsId") : ""));
+			        device.put("rdsVer", String.valueOf(deviceInfo != null ? deviceInfo.opt("rdsVer") : ""));
+			        device.put("dc", String.valueOf(deviceInfo != null ? deviceInfo.opt("dc") : ""));
+			        device.put("mi", String.valueOf(deviceInfo != null ? deviceInfo.opt("mi") : ""));
+			        device.put("mc", String.valueOf(deviceInfo != null ? deviceInfo.opt("mc") : ""));
+
+			        finalJson.put("deviceInfo", device);
+			        
+			        log.info("Bio-metric JSON :: {}", finalJson);
+
+			        //JSON → String
+			        String jsonString = finalJson.toString();
+
+			        //Base64 encode
+			        String base64Encoded = Base64.getEncoder().encodeToString(jsonString.getBytes(StandardCharsets.UTF_8));
+
+			        return base64Encoded;
+
+			    } catch (Exception e) {
+			        e.printStackTrace();
+			        throw new RuntimeException("Error converting XML to Base64 JSON", e);
+			    }
+			}
 
 	// Bio metric string to json and base64 conversion
 	public String convertPidXmlToBase64Json(String xmlData) {
@@ -244,7 +402,7 @@ public final class UtilityService {
 
 		        String base64Consent = Base64.getEncoder().encodeToString(consent.getBytes(StandardCharsets.UTF_8));
 		        
-		        String saTxn = sa + ":" + Instant.now().toString();; 
+		        String saTxn = sa + ":" + Instant.now().toString(); 
 		                
 		        if (pidData == null) {
 		            throw new RuntimeException("Invalid PID XML: Missing PidData");
@@ -536,4 +694,37 @@ public final class UtilityService {
 	private boolean isBlank(String value) {
 	    return value == null || value.isBlank();
 	}
+	
+	//Generate ClientRefID for DMT Transactions
+	private long count = 0;
+	public String generateRRNAndStan() {
+	    try {
+	        // Get the current timestamp in seconds since epoch
+	        long timestampInSeconds = System.currentTimeMillis() / 1000; // This gives us the seconds part
+	        String timestampStr = Long.toString(timestampInSeconds);
+
+	        String year = Integer.toString(Calendar.getInstance().get(Calendar.YEAR)).substring(2, 4); // Last 2 digits of the year
+	        String doy = String.format("%03d", Calendar.getInstance().get(Calendar.DAY_OF_YEAR)); // Day of year (3 digits)
+	        String hour = String.format("%02d", Calendar.getInstance().get(Calendar.HOUR_OF_DAY)); // Hour of day (2 digits)
+
+	        String rrn = String.format("%s%s%s%s", year, doy, hour, timestampStr.substring(timestampStr.length() - 2));
+
+	        long stanValue = generateStan();
+	        String stan = String.format("%06d", stanValue); // Format STAN with leading zeros
+
+	        return rrn + stan;
+
+	    } catch (Exception e) {
+	        log.error("Exception generateRRNAndStan :" + e);
+	        return "";
+	    }
+	}
+	
+	private synchronized long generateStan() {
+	    if (++count > 999999) {
+	        count = 1;
+	    }
+	    return count;
+	}
+
 }
