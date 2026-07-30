@@ -69,7 +69,7 @@ public class DMTCustomerMasterEntity {
     private String authorizationCode;
     
     @Column(name = "dob")
-    private Date dob;
+    private LocalDate dob;
     
     @Column(name = "aadhar_number", length = 20)
     private String aadharNumber;

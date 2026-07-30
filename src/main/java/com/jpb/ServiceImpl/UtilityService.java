@@ -379,7 +379,8 @@ public final class UtilityService {
 
 			    } catch (Exception e) {
 			        e.printStackTrace();
-			        throw new RuntimeException("Error converting XML to Base64 JSON", e);
+//			        throw new RuntimeException("Error converting XML to Base64 JSON", e);
+			        return "Not Proper FingerPrint Data";
 			    }
 			}
 

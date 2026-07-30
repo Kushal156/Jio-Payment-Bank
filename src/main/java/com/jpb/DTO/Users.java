@@ -1,6 +1,7 @@
 package com.jpb.DTO;
 
 import java.sql.Date;
+import java.time.LocalDate;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -23,7 +24,7 @@ public class Users {
 	private Integer occupationCode;
 	
 	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
-	private Date dob;
+	private LocalDate dob;
 	private List<AddressDTO> address;
 	
 	//AEPS Params

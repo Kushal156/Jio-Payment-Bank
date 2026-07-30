@@ -39,7 +39,7 @@ public class TransactionAeps {
 	private String methodSubType;
 	private String nextActionRequest;
 	private Double amount;
-	private Double charges;
+	private Double charges;	
 	
 	private UidaiDataDTO uidaiData;
 	

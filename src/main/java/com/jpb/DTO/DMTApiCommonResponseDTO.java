@@ -28,6 +28,7 @@ public class DMTApiCommonResponseDTO {
     private String dailyLimit;
     private String monthlyLimit;
     private String dailyCount;
+    private String ekycCharges;
 	
 	private ErrorDetails error;
 	

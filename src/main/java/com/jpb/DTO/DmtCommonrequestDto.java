@@ -1,6 +1,7 @@
 package com.jpb.DTO;
 
 import java.sql.Date;
+import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -39,7 +40,7 @@ public class DmtCommonrequestDto {
 	private Integer occupationCode;
 	private String district;
 	private String houseNumber;
-	private String landmark;
+	private String landMark;
 	private String locality;
 	private String city;
 	private String state;
@@ -55,7 +56,8 @@ public class DmtCommonrequestDto {
 	private String receiverMobileNo;
 	private String serviceName;
 	private String beneficiaryId;
+	private String address;
 	
-	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
-	private Date dob;
+	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+	private LocalDate dob;
 }
