@@ -404,6 +404,17 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 
 		JpbAepsResponseDto apiresponse = mapper.readValue(response.getBody(), JpbAepsResponseDto.class);
 
+		AepsCommonResponseDto responsenew = new AepsCommonResponseDto();
+
+
+		String responsecode1 = apiresponse.getResponseCode();
+		if ("1164".equalsIgnoreCase(responsecode1)) {
+
+			responsenew.setStatusCode(responsecode1);
+			responsenew.setMessage(apiresponse.getResponseMessage());
+			return responsenew;
+		}
+
 		String nextActionRequest = apiresponse.getResponsedata().getTransaction().getNextActionRequest();
 
 
@@ -440,7 +451,6 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 
 
 
-		AepsCommonResponseDto responsenew = new AepsCommonResponseDto();
 		if ("1000".equalsIgnoreCase(responsecode)) {
 
 			responsenew.setStatusCode(responsecode);
