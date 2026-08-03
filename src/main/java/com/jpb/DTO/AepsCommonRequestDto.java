@@ -66,6 +66,9 @@ public class AepsCommonRequestDto {
 	private String amount;
 	
 	private String extraInfo;
-		
+	
+	private String xmlBiometricString;
+	private String transactionAmount;
+	private String adhaarNumber;
 	
 }

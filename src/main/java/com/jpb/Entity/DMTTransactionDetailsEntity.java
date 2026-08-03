@@ -27,7 +27,7 @@ public class DMTTransactionDetailsEntity {
 	private Long dmtTransactionId;
 
 	@Column(name = "tid")
-	private Long tid;
+	private String tid;
 
 	@Column(name = "bank_reference_no")
 	private String bankReferenceNo;

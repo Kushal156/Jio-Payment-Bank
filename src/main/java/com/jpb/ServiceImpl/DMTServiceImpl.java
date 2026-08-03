@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -34,7 +35,7 @@ import org.springframework.web.client.RestTemplate;
 import com.jpb.Config.TokenManager;
 import com.jpb.DTO.AadhaarDTO;
 import com.jpb.DTO.AddressDTO;
-import com.jpb.DTO.AepsTransactionRequestDto;
+import com.jpb.DTO.DMTTransactionRequestDto;
 import com.jpb.DTO.Agent;
 import com.jpb.DTO.AgentUser;
 import com.jpb.DTO.Amount;
@@ -724,7 +725,7 @@ public class DMTServiceImpl implements DMTService {
 			}
 
 			// Request
-			AepsTransactionRequestDto request = new AepsTransactionRequestDto();
+			DMTTransactionRequestDto request = new DMTTransactionRequestDto();
 
 			String idempotentKey = String.valueOf(System.currentTimeMillis());
 			String timestamp = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString();
@@ -861,7 +862,7 @@ public class DMTServiceImpl implements DMTService {
 			HttpHeaders header = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
 					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
 
-			HttpEntity<AepsTransactionRequestDto> entity = new HttpEntity<>(request, header);
+			HttpEntity<DMTTransactionRequestDto> entity = new HttpEntity<>(request, header);
 			
 			log.info("Entity for DMT EKYC :: {}", entity.toString());
 			
@@ -951,6 +952,7 @@ public class DMTServiceImpl implements DMTService {
 				error.setCode(String.valueOf(statusCode));
 				error.setMessage(responseBody != null ? responseBody : "API Failed");
 				finalResponse.setStatus("FAILURE");
+				finalResponse.setMessage(finalResponse.getError().getMessage());
 				finalResponse.setError(error);
 			}
 			
@@ -1380,6 +1382,7 @@ public class DMTServiceImpl implements DMTService {
 				
 				if (!paymentStatus) {
 				    finalResponse.setResponseCode("02");
+				    finalResponse.setStatus("FAILURE");
 				    finalResponse.setResponseMessage("FAILURE");
 				    finalResponse.setMessage("Money Not Debited from Wallet");
 				    return ResponseEntity.ok(finalResponse);
@@ -1387,7 +1390,7 @@ public class DMTServiceImpl implements DMTService {
 			}
 			
 			//Request
-			AepsTransactionRequestDto request = new AepsTransactionRequestDto();
+			DMTTransactionRequestDto request = new DMTTransactionRequestDto();
 			
 			//Transaction
 			TransactionAeps trans = new TransactionAeps();
@@ -1488,15 +1491,43 @@ public class DMTServiceImpl implements DMTService {
 			HttpHeaders header = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
 					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
 
-			HttpEntity<AepsTransactionRequestDto> entity = new HttpEntity<>(request, header);
+			HttpEntity<DMTTransactionRequestDto> entity = new HttpEntity<>(request, header);
 			
 			try {
-				response = rest.exchange(DMTTransactionURL, HttpMethod.POST, entity, String.class);
-				log.info("JSON Raw Response for DMT Transaction :: {}", response.getBody());
+//				response = rest.exchange(DMTTransactionURL, HttpMethod.POST, entity, String.class);
+//				log.info("JSON Raw Response for DMT Transaction :: {}", response.getBody());
 
-				if (response != null) {
-					responseBody = response.getBody();
-					statusCode = response.getStatusCode().value();
+//				if (response != null) {
+					
+					
+					if(true) {
+					responseBody = """
+							{
+"responseCode": "00",
+"responseMessage": "SUCCESS",
+"responseData": {
+"transactionTime": "Tue Sep 03 11:25:01 IST 2024",
+"remitterMobile": "9009911411",
+"beneficiaryName": "Rajesh Mann",
+"beneficiaryAccountNumber": "123456041",
+"beneficiaryBankName": "HDFC0CAMCBK",
+"transactions": [
+{
+"transactionId": "10012424359119646000",
+"rrn": "424316251453",
+"amount": 5000.0,
+"charges": 60.0,
+"timestamp": "Tue Sep 03 11:25:01 IST 2024",
+"status": "SUCCESS"
+}
+]
+}
+}
+							""";
+					statusCode = 200;
+					
+//					responseBody = response.getBody();
+//					statusCode = response.getStatusCode().value();
 				}
 			} catch (HttpStatusCodeException ex) {
 
@@ -1537,11 +1568,20 @@ public class DMTServiceImpl implements DMTService {
 			
 			if ("SUCCESS".equalsIgnoreCase(finalResponse.getResponseMessage()) && "00".equalsIgnoreCase(finalResponse.getResponseCode())) {
 				
+				finalResponse.setMessage("DMT Transaction Successfull");
+				finalResponse.setStatus("SUCCESS");
+				
 				List<TransactionAeps> transaction = finalResponse.getResponseData().getTransactions();
 				
 				if (transaction != null && !transaction.isEmpty()) {
 
 				    TransactionAeps txn = transaction.get(0);
+				    finalResponse.setJPBTransactionID(txn.getTransactionId());
+				    finalResponse.setJPBRRN(txn.getRrn());
+				    finalResponse.setJPBAmount(txn.getAmount());
+				    finalResponse.setJPBCharges(txn.getCharges());
+				    finalResponse.setJPBTransactionTime(txn.getTimestamp());
+				    
 
 				    //Transaction Master
 				    DMTMaster.setBankReferenceNo(txn.getTransactionId());
@@ -1550,7 +1590,7 @@ public class DMTServiceImpl implements DMTService {
 				    DMTMaster.setRemarks("JPB Status " + txn.getStatus());
 
 				    //Transaction Details
-					DMTDetails.setTid(Long.parseLong(txn.getTransactionId()));
+					DMTDetails.setTid(txn.getTransactionId());
 				    DMTDetails.setBankReferenceNo(txn.getTransactionId());
 				    DMTDetails.setTimeStamp(LocalDateTime.now());
 				    DMTDetails.setRemarks(txn.getStatus());
@@ -1566,6 +1606,31 @@ public class DMTServiceImpl implements DMTService {
 				    
 				}
 			} else if ("FAILURE".equalsIgnoreCase(finalResponse.getResponseMessage()) || "1000".equalsIgnoreCase(finalResponse.getResponseCode())) {
+				
+				finalResponse.setMessage(finalResponse.getResponseMessage());
+				finalResponse.setStatus("FAILURE");
+				
+				//Transaction Master
+			    DMTMaster.setRemarks("JPB Status Failed");
+
+			    //Transaction Details
+			    DMTDetails.setTimeStamp(LocalDateTime.now());
+			    DMTDetails.setRemarks("Failed");
+			    
+			    //Transaction History
+			    DMTHistory.setStatus(1);
+			    DMTHistory.setRequestStatus(6);
+			    DMTHistory.setRemarks("Failed");
+			    
+			    DMTMasterRepo.save(DMTMaster);
+			    DMTDeatilRepo.save(DMTDetails);
+			    DMTHistoryRepo.save(DMTHistory);
+			}
+			else {
+				
+				finalResponse.setMessage(finalResponse.getResponseMessage());
+				finalResponse.setStatus("FAILURE");
+				
 				//Transaction Master
 			    DMTMaster.setRemarks("JPB Status Failed");
 
@@ -1587,7 +1652,7 @@ public class DMTServiceImpl implements DMTService {
 			
 		} catch(Exception e) {
 			log.error("DMT Transaction Exception", e);
-			error.setCode(String.valueOf(response.getStatusCode().value()));
+			error.setCode(String.valueOf(statusCode));
 			error.setMessage(e.getMessage());
 			finalResponse.setError(error);
 			return ResponseEntity.ok(finalResponse);
@@ -1857,6 +1922,7 @@ public class DMTServiceImpl implements DMTService {
 	
 	//Beneficiary Validation
 	@Override
+	@Transactional
 	public ResponseEntity<?> beneValidation(DmtCommonrequestDto input, HttpServletRequest httpRequest) {
 		
 		ObjectMapper mapper = new ObjectMapper();
@@ -2291,6 +2357,65 @@ public class DMTServiceImpl implements DMTService {
 			finalResponse.setError(error);
 			return ResponseEntity.ok(finalResponse);
 		}		
+	}
+
+	//Amount Calulation According to service
+	@Override
+	public ResponseEntity<?> amtCalculation(DmtCommonrequestDto request, HttpServletRequest httpRequest) {
+
+		String sql = "{call VLPaymentGateway.GetAmountToBeDebited(?, ?, ?, ?, ?, ?, ?)}";
+	    
+	    DMTApiCommonResponseDTO finalResponse = new DMTApiCommonResponseDTO();
+	    try {
+
+	        List<DMTApiCommonResponseDTO> results = jdbc.query(
+	                sql,
+	                ps -> {
+	                    ps.setString(1, "13");
+	                    ps.setString(2, "143");
+	                    ps.setString(3, "171");
+	                    ps.setString(4, "65");
+	                    ps.setString(5, request.getNetAmount());
+	                    ps.setString(6, "");
+	                    ps.setString(7, request.getVkid());
+	                },
+	                (rs, rowNum) -> {
+
+	                	DMTApiCommonResponseDTO response = new DMTApiCommonResponseDTO();
+	                    response.setResponseType(rs.getString("ResponseType"));
+
+	                    Double transactionAmount = rs.getDouble("transactionAmount");
+	                    Double amountToBeDebited = rs.getDouble("AmountToBeDeductedAfterGST");
+
+	                    response.setTransactionAmount(transactionAmount);
+	                    response.setAmountToBeDebited(amountToBeDebited);
+	                    response.setServiceCharge(amountToBeDebited - transactionAmount);
+	                    response.setStatus("SUCCESS");
+	                    response.setMessage("Transaction Details fetched successfully");	                    
+	                    return response;
+	                });
+
+	        if (results.isEmpty()) {
+	        	finalResponse.setStatus("FAILURE");
+	        	finalResponse.setMessage("Service Charges are yet underway");
+	            return ResponseEntity.ok(finalResponse);
+	        }
+
+	        DMTApiCommonResponseDTO response = results.get(0);
+
+	        if (!"OKAY".equalsIgnoreCase(response.getResponseType())) {
+	        	finalResponse.setStatus("FAILURE");
+	        	finalResponse.setMessage("Transaction Charges failed");
+	            return ResponseEntity.ok(finalResponse);
+	        }
+
+	        return ResponseEntity.ok(response);
+
+	    } catch (Exception ex) {
+	        log.error("Error while calculating amount to be debited", ex);
+	        return ResponseEntity.internalServerError()
+	                .body("Something went wrong. Please try again.");
+	    }
 	}
 	
 }

@@ -80,4 +80,9 @@ public class DMTController {
 	public ResponseEntity<?> custDetails(@RequestBody DmtCommonrequestDto request,HttpServletRequest httpRequest ) {
 		return service.custDetails(request, httpRequest);
 	}
+	
+	@PostMapping("/amount-calculation")
+	public ResponseEntity<?> amtCalculation(@RequestBody DmtCommonrequestDto request,HttpServletRequest httpRequest ) {
+		return service.amtCalculation(request, httpRequest);
+	}
 }

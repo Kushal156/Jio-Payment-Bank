@@ -46,7 +46,7 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 	//nikhil
 
 	@Value("${channelID}")
-	private String channelid;
+	private Integer channelid;
 
 	@Autowired
 	UtilityService util;

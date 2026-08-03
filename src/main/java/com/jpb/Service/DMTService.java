@@ -32,4 +32,6 @@ public interface DMTService {
 
 	ResponseEntity<?> custDetails(DmtCommonrequestDto request, HttpServletRequest httpRequest);
 
+	ResponseEntity<?> amtCalculation(DmtCommonrequestDto request, HttpServletRequest httpRequest);
+
 }

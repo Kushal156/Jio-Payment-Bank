@@ -1,7 +1,9 @@
 package com.jpb.DTO;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import lombok.Data;
@@ -30,6 +32,20 @@ public class DMTApiCommonResponseDTO {
     private String dailyCount;
     private String ekycCharges;
 	
+    private String responseType;
+    private String description;
+    private Double transactionAmount;
+    private Double serviceCharge;
+    private Double amountToBeDebited;
+    
+    private String JPBTransactionID;
+    private String JPBRRN;
+    private Double JPBAmount;
+    private Double JPBCharges;
+    
+    @JsonFormat(pattern = "EEE MMM dd HH:mm:ss z yyyy", locale = "en")
+    private ZonedDateTime JPBTransactionTime;
+    
 	private ErrorDetails error;
 	
 }
