@@ -12,9 +12,16 @@ import lombok.ToString;
 public class JpbAepsResponseDto {
 
 	private String responseCode;
+
 	private String responseMessage;
-	
+
 	@JsonProperty("responseData")
-    private ResponseData responsedata;
-	
+	private ResponseData responsedata;
+
+	private String status;
+
+	private String otpReferenceId;
+
+	private AadhaarDTO aadhaar;
+
 }
