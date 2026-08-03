@@ -1,5 +1,6 @@
 package com.jpb.DTO;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -27,7 +28,7 @@ public class DataDTO {
 
 	//Aeps common response
 	private String terminalId;
-	private String requestTransactionTime;
+	private Instant requestTransactionTime;
 	private String transactionAmount;
 	private String transactionStatus;
 	private String balanceAmount;

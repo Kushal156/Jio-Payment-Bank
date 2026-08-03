@@ -1,5 +1,7 @@
 package com.jpb.DTO;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.ToString;
@@ -12,4 +14,5 @@ public class ResponseData {
 	private TransactionAeps transaction;
     private Amount account;
 	private String  traceid;
+	private List<MiniStatementDto> miniStatement;
 }

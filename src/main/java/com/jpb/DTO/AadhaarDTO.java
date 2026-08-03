@@ -33,4 +33,6 @@ public class AadhaarDTO {
     private String aadhaarNumber;
     private ConsentDTO consentCode;
     private String number;
+    
+    private String token;
 }

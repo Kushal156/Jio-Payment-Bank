@@ -20,4 +20,7 @@ public class AuthenticateDTO {
     private AadhaarDTO aadhaar;
     private String consent;
   	private String consentCode;
+  	
+  	//AEPS
+  	private String biometrics;
 }
