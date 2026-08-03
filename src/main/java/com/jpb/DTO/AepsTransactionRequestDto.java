@@ -16,9 +16,12 @@ public class AepsTransactionRequestDto {
 	private TransactionAeps transaction;
 	private Amount amount;
 	private PayerDto payer;
-	private PayerDto payee;
-	private SecureDTO secure;
+
+
+
+	private Secure secure;
 	private ConsentDTO auth;
+	private  Payee payee;
 
 	// DMT Params
 	private Users user;
