@@ -1,5 +1,6 @@
 package com.jpb.DTO;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -26,7 +27,7 @@ public class AepsTransaction2FaDto {
 
 	private String purpose;
 
-	private String amount;
+	private BigDecimal amount;
 
 	private String extraInfo;
 
