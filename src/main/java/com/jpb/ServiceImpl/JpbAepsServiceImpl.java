@@ -1,6 +1,5 @@
 package com.jpb.ServiceImpl;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -279,7 +278,7 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 		aepsrequest.getTransaction().setCaptureMethod(1);
 		aepsrequest.getTransaction().setLivemode("true");
 		aepsrequest.getTransaction().setApplication(channelid);
-		aepsrequest.getTransaction().setInitiatingEntityTimestamp(Instant.now());
+		aepsrequest.getTransaction().setInitiatingEntityTimestamp(timestamp);
 		// 2026-07-10T12:02:10.549Z
 
 		InitiatingEntity initiatingEntity = new InitiatingEntity();
@@ -584,7 +583,7 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 		aepsrequest.getTransaction().setCaptureMethod(1);
 		aepsrequest.getTransaction().setLivemode("true");
 		aepsrequest.getTransaction().setApplication(channelid);
-		aepsrequest.getTransaction().setInitiatingEntityTimestamp(Instant.now());
+		aepsrequest.getTransaction().setInitiatingEntityTimestamp(timestamp);
 
 		InitiatingEntity initiatingEntity = new InitiatingEntity();
 
@@ -862,7 +861,7 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 
 		aepsrequest.getTransaction().setApplication(channelid);
 
-		aepsrequest.getTransaction().setInitiatingEntityTimestamp(Instant.now());
+		aepsrequest.getTransaction().setInitiatingEntityTimestamp(timestamp);
 
 		InitiatingEntity initiatingEntity = new InitiatingEntity();
 
@@ -1114,7 +1113,7 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 
 		aepsrequest.getTransaction().setApplication(channelid);
 
-		aepsrequest.getTransaction().setInitiatingEntityTimestamp(Instant.now());
+		aepsrequest.getTransaction().setInitiatingEntityTimestamp(timestamp);
 
 		InitiatingEntity initiatingEntity = new InitiatingEntity();
 
@@ -1433,7 +1432,7 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 		aepsrequest.getTransaction().setLivemode("true");
 		aepsrequest.getTransaction().setApplication(channelid);
 
-		aepsrequest.getTransaction().setInitiatingEntityTimestamp(Instant.now());
+		aepsrequest.getTransaction().setInitiatingEntityTimestamp(timestamp);
 
 		InitiatingEntity initiatingEntity = new InitiatingEntity();
 

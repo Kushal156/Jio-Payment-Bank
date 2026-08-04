@@ -22,7 +22,7 @@ public class ResponseDataDTO {
 	private String beneficiaryName;
 	private String beneficiaryAccountNumber;
 	private String beneficiaryBankName;
-	private List<TransactionAeps> transactions;
+	private List<TransactionDMT> transactions;
 	
 	private String rrn;
 	private String transactionId;

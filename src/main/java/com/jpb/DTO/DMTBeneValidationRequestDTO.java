@@ -10,7 +10,7 @@ import lombok.ToString;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DMTBeneValidationRequestDTO {
 
-	private TransactionAeps transaction;
+	private TransactionDMT transaction;
 	private Amount amount;
 	private PayerDto payer;
 	private PayerDto payee;

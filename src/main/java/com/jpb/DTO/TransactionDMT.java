@@ -1,11 +1,11 @@
 package com.jpb.DTO;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
 import lombok.ToString;
@@ -13,7 +13,7 @@ import lombok.ToString;
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class TransactionAeps {
+public class TransactionDMT {
 
 	private String idempotentKey;
 	private Integer currency;
@@ -25,12 +25,12 @@ public class TransactionAeps {
 	private String livemode;
 	private Integer application;
 	
-	//@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "IST")
-	private String initiatingEntityTimestamp;
+	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "IST")
+	private Instant initiatingEntityTimestamp;
 	private InitiatingEntity initiatingEntity; 	
 	
-	//@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "IST")
-	private String transactionTime;
+	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "IST")
+	private Instant transactionTime;
 	private String rrn;
 	private String transactionId;
 	

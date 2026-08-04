@@ -63,7 +63,7 @@ import com.jpb.DTO.Mobile;
 import com.jpb.DTO.OrganizationDTO;
 import com.jpb.DTO.PayerDto;
 import com.jpb.DTO.SecureDTO;
-import com.jpb.DTO.TransactionAeps;
+import com.jpb.DTO.TransactionDMT;
 import com.jpb.DTO.Users;
 import com.jpb.Entity.AgentMasterEntity;
 import com.jpb.Entity.BeneficiaryListEntity;
@@ -731,7 +731,7 @@ public class DMTServiceImpl implements DMTService {
 			String timestamp = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString();
 
 			// Transaction
-			TransactionAeps transaction = new TransactionAeps();
+			TransactionDMT transaction = new TransactionDMT();
 			transaction.setIdempotentKey(idempotentKey);
 			transaction.setCurrency(356);
 			transaction.setInvoice(idempotentKey);
@@ -1393,7 +1393,7 @@ public class DMTServiceImpl implements DMTService {
 			DMTTransactionRequestDto request = new DMTTransactionRequestDto();
 			
 			//Transaction
-			TransactionAeps trans = new TransactionAeps();
+			TransactionDMT trans = new TransactionDMT();
 			trans.setIdempotentKey(idempotentKey);
 			trans.setCurrency(356);
 			trans.setInvoice(idempotentKey);
@@ -1571,11 +1571,11 @@ public class DMTServiceImpl implements DMTService {
 				finalResponse.setMessage("DMT Transaction Successfull");
 				finalResponse.setStatus("SUCCESS");
 				
-				List<TransactionAeps> transaction = finalResponse.getResponseData().getTransactions();
+				List<TransactionDMT> transaction = finalResponse.getResponseData().getTransactions();
 				
 				if (transaction != null && !transaction.isEmpty()) {
 
-				    TransactionAeps txn = transaction.get(0);
+				    TransactionDMT txn = transaction.get(0);
 				    finalResponse.setJPBTransactionID(txn.getTransactionId());
 				    finalResponse.setJPBRRN(txn.getRrn());
 				    finalResponse.setJPBAmount(txn.getAmount());
@@ -1679,7 +1679,7 @@ public class DMTServiceImpl implements DMTService {
 			}
 			
 			//Request
-			TransactionAeps trans = new TransactionAeps();
+			TransactionDMT trans = new TransactionDMT();
 			trans.setIdempotentKey(idempotentKey);
 			
 			Method meth = new Method();
@@ -1692,7 +1692,7 @@ public class DMTServiceImpl implements DMTService {
 			HttpHeaders header = util.buildHeaders(httpRequest, tokenManager.getAccessToken(),
 					tokenManager.getAppIdentifierToken(), input.getLatitude(), input.getLongitude());
 
-			HttpEntity<TransactionAeps> entity = new HttpEntity<>(trans, header);
+			HttpEntity<TransactionDMT> entity = new HttpEntity<>(trans, header);
 			
 			try {
 				
@@ -1990,7 +1990,7 @@ public class DMTServiceImpl implements DMTService {
 			DMTBeneValidationRequestDTO request = new DMTBeneValidationRequestDTO();
 			
 			//Transaction
-			TransactionAeps trans = new TransactionAeps();
+			TransactionDMT trans = new TransactionDMT();
 			trans.setIdempotentKey(idempotentKey);
 			trans.setCurrency(356);
 			trans.setInvoice(idempotentKey);
@@ -2336,6 +2336,7 @@ public class DMTServiceImpl implements DMTService {
 				mobResponse.put("customerNumber", input.getMobile());
 				mobResponse.put("beneficiaries", beneListRecords);
 				mobResponse.put("ekycCharges", 10.00);
+				mobResponse.put("beneVerificationCharges", 3.00);
 			
 			} else {
 				mobResponse.put("customerLimit", new LinkedHashMap<>());	
@@ -2345,6 +2346,7 @@ public class DMTServiceImpl implements DMTService {
 				mobResponse.put("customerNumber", input.getMobile());
 				mobResponse.put("beneficiaries", new ArrayList<String>());
 				mobResponse.put("ekycCharges", 10.00);
+				mobResponse.put("beneVerificationCharges", 3.00);
 			}	
 			
 			return ResponseEntity.ok(mobResponse);

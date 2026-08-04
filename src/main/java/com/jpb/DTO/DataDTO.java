@@ -28,7 +28,7 @@ public class DataDTO {
 
 	//Aeps common response
 	private String terminalId;
-	private Instant requestTransactionTime;
+	private String requestTransactionTime;
 	private String transactionAmount;
 	private String transactionStatus;
 	private String balanceAmount;

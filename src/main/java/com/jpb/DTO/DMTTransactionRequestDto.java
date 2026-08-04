@@ -12,7 +12,7 @@ import lombok.ToString;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DMTTransactionRequestDto {
 
-	private TransactionAeps transaction;
+	private TransactionDMT transaction;
 	private Amount amount;
 	private PayerDto payer;
 	private PayerDto payee;
