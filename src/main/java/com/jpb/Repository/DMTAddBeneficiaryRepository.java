@@ -12,7 +12,7 @@ import jakarta.transaction.Transactional;
 
 public interface DMTAddBeneficiaryRepository extends JpaRepository<DMTAddBeneficiaryEntity, Long>{
 
-	Optional<DMTAddBeneficiaryEntity> findByDmtCustomerIdAndDmtPartnerIdAndAccountNo(String customerID,
+	Optional<DMTAddBeneficiaryEntity> findByDmtCustomerIdAndDmtPartnerIdAndAccountNo(Integer customerID,
 			Integer partnerId, String accNo);
 
 	Optional<DMTAddBeneficiaryEntity> findByDmtRecipientId(String beneficiaryId);

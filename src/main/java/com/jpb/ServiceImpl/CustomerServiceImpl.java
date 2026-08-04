@@ -2414,7 +2414,7 @@ public class CustomerServiceImpl implements CustomerService {
 	@Transactional
 	@Override
 	public ResponseEntity<?> submitApp(CustomerInputRequestDTO input, HttpServletRequest httpRequest) {
-		log.info("Submit Application Request from Customer :: {}", input.toString());
+
 		ObjectMapper mapper = new ObjectMapper();
 		log.info("JSON Reqest from Customer Submit Application :: {}", mapper.writeValueAsString(input));
 
@@ -2590,9 +2590,9 @@ public class CustomerServiceImpl implements CustomerService {
 			// Nominee Details
 			Optional.ofNullable(input.getNomineeDetails()).ifPresent(nom -> {
 				nominee.setRelationship(nom.getRelationship());
-				nominee.setFirstName(nom.getFirstName());
-				nominee.setMiddleName(nom.getMiddleName());
-				nominee.setLastName(nom.getLastName());
+				nominee.setFirstName(nom.getFirstName().trim());
+				nominee.setMiddleName(nom.getMiddleName().trim());
+				nominee.setLastName(nom.getLastName().trim());
 				nominee.setGender(nom.getGender());
 				nominee.setSalutation(nom.getSalutation());
 				nominee.setDateOfBirth(nom.getDateOfBirth());
@@ -2619,9 +2619,9 @@ public class CustomerServiceImpl implements CustomerService {
 			// Guardian Details inside nominee
 			GuardianDTO guard = new GuardianDTO();
 			Optional.ofNullable(input.getGuardianDetails()).ifPresent(grdDet -> {
-				guard.setFirstName(grdDet.getFirstName());
-				guard.setMiddleName(grdDet.getMiddleName());
-				guard.setLastName(grdDet.getLastName());
+				guard.setFirstName(grdDet.getFirstName().trim());
+				guard.setMiddleName(grdDet.getMiddleName().trim());
+				guard.setLastName(grdDet.getLastName().trim());
 				guard.setDateOfBirth(grdDet.getDateOfBirth());
 				guard.setRelationship(grdDet.getRelationship());
 			});

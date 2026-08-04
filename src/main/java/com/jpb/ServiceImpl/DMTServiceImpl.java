@@ -236,6 +236,7 @@ public class DMTServiceImpl implements DMTService {
 				
 				if(response != null) {
 					
+//					if(true) {
 //					responseBody = """
 //							{
 //									"status": "SUCCESS",
@@ -661,7 +662,7 @@ public class DMTServiceImpl implements DMTService {
 	@Transactional
 	public ResponseEntity<?> dmtEkyc(DmtCommonrequestDto input, HttpServletRequest httpRequest) {
 
-		input.setVkid("RJ2903071");
+//		input.setVkid("RJ2903071");
 		ObjectMapper mapper = new ObjectMapper();
 		ErrorDetails error = new ErrorDetails();
 		String responseBody = null;
@@ -1889,6 +1890,24 @@ public class DMTServiceImpl implements DMTService {
 					finalResponse.setDailyLimit(node.get("dailyLimit").asText());
 					finalResponse.setMonthlyLimit(node.get("monthlyLimit").asText());
 					finalResponse.setDailyCount(node.get("dailyCount").asText());
+				}else {
+					responseBody = """
+							{
+							    "yearlyLimit": "0",
+							    "yearlyCount": "0",
+							    "monthlyCount": "0",
+							    "dailyLimit": "0",
+							    "monthlyLimit": "0",
+							    "dailyCount": "0"
+							}
+							""";
+					JsonNode node = mapper.readTree(responseBody);
+					finalResponse.setYearlyLimit(node.get("yearlyLimit").asText());
+					finalResponse.setYearlyCount(node.get("yearlyCount").asText());
+					finalResponse.setMonthlyCount(node.get("monthlyCount").asText());
+					finalResponse.setDailyLimit(node.get("dailyLimit").asText());
+					finalResponse.setMonthlyLimit(node.get("monthlyLimit").asText());
+					finalResponse.setDailyCount(node.get("dailyCount").asText());
 				}
 			} catch (HttpStatusCodeException ex) {
 
@@ -1930,7 +1949,7 @@ public class DMTServiceImpl implements DMTService {
 		String responseBody = null;
 		ResponseEntity<String> response = null;
 		DMTApiCommonResponseDTO finalResponse = new DMTApiCommonResponseDTO();
-		Integer statusCode = null;
+		Integer statusCode = null, dmtCustomerId = null;
 		String idempotentKey = String.valueOf(System.currentTimeMillis());
 		String agentId = null, customerId = null, stateCode = null, agentPincode = null;
 		DMTCustomerMasterEntity masterEntity = new DMTCustomerMasterEntity();
@@ -1978,12 +1997,14 @@ public class DMTServiceImpl implements DMTService {
 				log.info("Agent Master Details for the VKID :: {}, {}", input.getVkid(), agent.toString());
 			}
 			
-			Optional<DMTCustomerMasterEntity> masterEntityRecord = customerMasterRepo.findByCustomerMobileNoAndDmtPartnerId(input.getMobile(), partnerId);
+			Optional<DMTCustomerMasterEntity> masterEntityRecord = customerMasterRepo.findByCustomerMobileNoAndDmtPartnerId(input.getSenderMobileNo(), partnerId);
 			
 			if(masterEntityRecord.isPresent()) {
 				masterEntity = masterEntityRecord.get();
 				customerId = masterEntity.getCustomerId();
+				dmtCustomerId = masterEntity.getDmtCustomerId();
 				log.info("Customer/Remitter-ID :: {}", customerId);
+				log.info("Column ID of Customer ID :: {}", dmtCustomerId);
 			}
 			
 			//Request
@@ -2092,8 +2113,30 @@ public class DMTServiceImpl implements DMTService {
 				log.info("JSON Raw Response for DMT Beneficiary Validation :: {}", response.getBody());
 
 				if (response != null) {
-					responseBody = response.getBody();
-					statusCode = response.getStatusCode().value();
+					
+//					if(true) {
+//						responseBody = """
+//								{
+//"responseCode": "00",
+//"responseMessage": "SUCCESS",
+//"responseData": {
+//"rrn": "433115512505",
+//"transactionId": "10672433157085605000",
+//"originalId": "10012433155653258000",
+//"transactionNetAmount": 2.54,
+//"transactionGrossAmount": 3.0,
+//"transactionTime": "Tue Nov 26 15:51:26 IST 2024",
+//"beneficiaryName": "NPCI BENI",
+//"beneficiaryAccountNumber": "123456041",
+//"beneficiaryBankName": "HDFC0000077"
+//}
+//}
+//								""";
+//						statusCode = 200;
+					
+					
+//					responseBody = response.getBody();
+//					statusCode = response.getStatusCode().value();
 				}
 			} catch (HttpStatusCodeException ex) {
 
@@ -2138,7 +2181,7 @@ public class DMTServiceImpl implements DMTService {
 				//finalResponse.setMessage("Beneficiary verified successfully.");
 				
 				Optional<DMTAddBeneficiaryEntity> addBeneRecord = addBeneRepo.findByDmtCustomerIdAndDmtPartnerIdAndAccountNo
-						(customerId, partnerId, input.getAccNo());
+						(dmtCustomerId, partnerId, input.getAccNo());
 				
 				if(addBeneRecord.isPresent()) {
 					beneficiary = addBeneRecord.get();
@@ -2148,6 +2191,7 @@ public class DMTServiceImpl implements DMTService {
 					beneficiary.setRrnId(finalResponse.getResponseData().getRrn());
 					beneficiary.setTid(finalResponse.getResponseData().getTransactionId());
 					beneficiary.setGrossAmount(paymentStatus ? 3.00 : null);
+					beneficiary.setBankCustomerName(finalResponse.getResponseData().getBeneficiaryName());
 					addBeneRepo.save(beneficiary);
 					
 					finalResponse.setStatus("SUCCESS");
@@ -2156,7 +2200,7 @@ public class DMTServiceImpl implements DMTService {
 					log.info("Beneficiary verified successfully.");
 					
 				} else {
-					beneficiary.setDmtCustomerId(customerId);
+					beneficiary.setDmtCustomerId(dmtCustomerId.toString());
 					beneficiary.setDmtPartnerId(partnerId);
 					beneficiary.setAccountNo(input.getAccNo());
 					beneficiary.setIfsc(input.getBankIFSC());
@@ -2171,8 +2215,10 @@ public class DMTServiceImpl implements DMTService {
 					beneficiary.setRrnId(finalResponse.getResponseData().getRrn());
 					beneficiary.setTid(finalResponse.getResponseData().getTransactionId());
 					beneficiary.setGrossAmount(paymentStatus ? 3.00 : null);
-
-				    beneficiary = addBeneRepo.save(beneficiary);
+					beneficiary.setSessionId(dmtCustomerId+input.getAccNo()+input.getBankIFSC());
+					beneficiary.setBankCustomerName(finalResponse.getResponseData().getBeneficiaryName());
+					
+					beneficiary = addBeneRepo.save(beneficiary);
 
 				    log.info("Beneficiary created & verified successfully.");
 				    finalResponse.setStatus("SUCCESS");
@@ -2180,7 +2226,7 @@ public class DMTServiceImpl implements DMTService {
 				}
 			} else if ("FAILURE".equalsIgnoreCase(finalResponse.getResponseMessage())) {
 				
-				beneficiary.setDmtCustomerId(customerId);
+				beneficiary.setDmtCustomerId(dmtCustomerId.toString());
 				beneficiary.setDmtPartnerId(partnerId);
 				beneficiary.setAccountNo(input.getAccNo());
 				beneficiary.setIfsc(input.getBankIFSC());
@@ -2208,7 +2254,7 @@ public class DMTServiceImpl implements DMTService {
 			
 		} catch(Exception e) {
 			log.error("DMT Customer Limit Check Exception", e);
-			error.setCode(String.valueOf(response.getStatusCode().value()));
+			error.setCode("200");
 			error.setMessage(e.getMessage());
 			finalResponse.setError(error);
 			return ResponseEntity.ok(finalResponse);
@@ -2249,7 +2295,7 @@ public class DMTServiceImpl implements DMTService {
 				
 				if(customerID != null && !"".equalsIgnoreCase(customerID)) {
 					Optional<DMTAddBeneficiaryEntity> addBeneRecord = addBeneRepo.findByDmtCustomerIdAndDmtPartnerIdAndAccountNo
-							(dmtCustomerID.toString(), partnerId, input.getAccNo());
+							(dmtCustomerID, partnerId, input.getAccNo());
 					
 					if (addBeneRecord.isPresent()) {
 					    beneficiary = addBeneRecord.get();
