@@ -49,7 +49,6 @@ public class DataDTO {
 	private String customerAadhaarNumber;
 	private String customerName;
 	private String stan;
-	private String rrn;
 	private String uidaiAuthCode;
 	private String bcLocation;
 	private String demandSheetId;
