@@ -504,7 +504,7 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 		responsenew.setData(data);
 
 		data.setRequestTransactionTime(apiresponse2.getResponsedata().getTransaction().getTransactionTime());
-		data.setRrn(apiresponse2.getResponsedata().getTransaction().getRrn());
+		data.setBankRRN(apiresponse2.getResponsedata().getTransaction().getRrn());
 		data.setJioTransactionId(apiresponse2.getResponsedata().getTransaction().getTransactionId());
 		data.setResponseCode(apiresponse2.getResponseCode());
 		return responsenew;
@@ -755,7 +755,7 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 		responsenew.setData(data);
 
 		data.setRequestTransactionTime(apiresponse.getResponsedata().getTransaction().getTransactionTime());
-		data.setRrn(apiresponse.getResponsedata().getTransaction().getRrn());
+		data.setBankRRN(apiresponse.getResponsedata().getTransaction().getRrn());
 		data.setJioTransactionId(apiresponse.getResponsedata().getTransaction().getTransactionId());
 		data.setResponseCode(apiresponse.getResponseCode());
 
@@ -995,7 +995,7 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 		transactionresponse.setData(data);
 
 		data.setRequestTransactionTime(apiresponse.getResponsedata().getTransaction().getTransactionTime());
-		data.setRrn(apiresponse.getResponsedata().getTransaction().getRrn());
+		data.setBankRRN(apiresponse.getResponsedata().getTransaction().getRrn());
 		data.setJioTransactionId(apiresponse.getResponsedata().getTransaction().getTransactionId());
 		data.setResponseCode(apiresponse.getResponseCode());
 		if("00".equals(apiresponse.getResponseCode())) {
@@ -1272,16 +1272,25 @@ public class JpbAepsServiceImpl implements JpbAepsService {
 
 		transactionresponse.setData(data);
 
-		data.setRequestTransactionTime(apiresponse.getResponsedata().getTransaction().getTransactionTime());
-		data.setRrn(apiresponse.getResponsedata().getTransaction().getRrn());
-		data.setJioTransactionId(apiresponse.getResponsedata().getTransaction().getTransactionId());
-		data.setResponseCode(apiresponse.getResponseCode());
+		ResponseData responseData = apiresponse.getResponsedata();
 
-		if (apiresponse.getResponsedata().getAccount() != null
-				&& apiresponse.getResponsedata().getAccount().getBalance() != null) {
+		if (responseData != null) {
+			if (responseData.getTransaction() != null) {
 
-			data.setBalanceAmount(apiresponse.getResponsedata().getAccount().getBalance());
-			data.setTransactionStatus("SUCCESS");
+				data.setRequestTransactionTime(apiresponse.getResponsedata().getTransaction().getTransactionTime());
+				data.setBankRRN(apiresponse.getResponsedata().getTransaction().getRrn());
+				data.setJioTransactionId(apiresponse.getResponsedata().getTransaction().getTransactionId());
+
+
+				data.setResponseCode(apiresponse.getResponseCode());
+			}
+
+			if (apiresponse.getResponsedata().getAccount() != null
+					&& apiresponse.getResponsedata().getAccount().getBalance() != null) {
+
+				data.setBalanceAmount(apiresponse.getResponsedata().getAccount().getBalance());
+				data.setTransactionStatus("SUCCESS");
+			}
 		}
 		return transactionresponse;
 
