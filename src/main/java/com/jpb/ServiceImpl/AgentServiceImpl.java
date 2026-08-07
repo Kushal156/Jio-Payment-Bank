@@ -408,8 +408,10 @@ public class AgentServiceImpl implements AgentService {
 			    } else if("1006".equalsIgnoreCase(finalResponse.getError().getCode())){
 			    	agent.setNextActionType("GENERATE NEW");
 				    agent.setNextActionSubType("EXIT");
-			    }
-			    
+			    } else if("Onboarding Data saved successfully.".equalsIgnoreCase(finalResponse.getMessage())) {
+			    	agent.setNextActionType("AGENT ONBOARDED");
+				    agent.setNextActionSubType("COMPLETE");
+			    }    
 			    agent.setUpdatedAt(LocalDateTime.now());
 			    agentRepo.save(agent);
 			    log.info("Details Updated Successfully for Application No :: {}", applicationNo);
