@@ -1,5 +1,7 @@
 package com.jpb.DTO;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -23,5 +25,6 @@ public class JpbAepsResponseDto {
 	private String otpReferenceId;
 
 	private AadhaarDTO aadhaar;
+	
 
 }
